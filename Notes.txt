@@ -1,0 +1,29 @@
+﻿This is an update to accommodate those cases where the INV_TOUCHSCAN virtual location isn't used. In these cases, Scott has to enter the cost change into
+HEMM and then calculate the patient price before manually updating the location_procedure_code in MPOUS
+Here’s an overview of what this portion of the program’s doing – (The existing PCUConsole app would run as it does now with this additional bit added on at the end)
+
+1) 	On the MPOUS side, create a list of active Alias_ID's and the Location_Procedure_Codes:
+		SELECT DISTINCT AIA.Item_Id, ALIAS_ID, Location_Procedure_Code 
+		FROM [PointOfUseSupply].[dbo].[D_INVENTORY_ITEMS] DII
+		JOIN AHI_ITEM_ALIAS AIA ON AIA.Item_Id = DII.Item_Id
+		WHERE Billable_Flag = 1
+		AND ACTIVE_FLAG = 1 
+		AND LEN(Location_Procedure_Code) > 0		
+
+2)	On the HEMM side, create a list of ITEM_NO's and PAT_CHRG_PRICE's
+		SELECT distinct  ITEM_NO, PAT_CHRG_PRICE
+		FROM SLOC_ITEM
+		JOIN ITEM ON ITEM.ITEM_ID = SLOC_ITEM.ITEM_ID
+		WHERE  ISNULL(PAT_CHRG_PRICE,0) > 0
+		AND SLOC_ITEM.STAT IN (1,2)
+
+3)	Compare the two lists. Create a list for those items that don't match on the Patient Charge value.
+	This list will have the MPOUS Item_Id and the HEMM PAT_CHRG_PRICE.
+
+4)	Use the list from step 3 to update the Location_Procedure_Code on the MPOUS side.
+		UPDATE D_INVENTORY_ITEMS SET Location_Procedure_Code = '40526_30_C1887^7464'
+		WHERE Billable_Flag = 1  AND Item_Id = 79950
+
+		/*then there's this line for testing*/
+		UPDATE [uwm_BIAdmin].[dbo].[uwm_D_INVENTORY_ITEMS] SET Location_Procedure_Code = 'xxxx'
+		WHERE Billable_Flag = 1  AND Item_Id = xxxx
