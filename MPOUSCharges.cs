@@ -19,6 +19,7 @@ namespace PCUConsole
         private Hashtable alias_PatChrg = new Hashtable();
         private Hashtable itemNoPCost = new Hashtable();
         private ArrayList aliasList = new ArrayList();
+        private string alias = "";
         #region Properties
         public Hashtable DollarLimits
         {
@@ -71,7 +72,7 @@ namespace PCUConsole
         {//takes the aliasLPC hastable and splits off the current pat chrg price. This value is put in the resulting ArrayList aliasList
             //since we have to compare the MPOUS items to all of the HEMM items, this keeps us from calculating pac chrg values
             //for items that aren't in MPOUS.
-            string alias = "";
+            alias = "";
           //  string patChrg = "";
             string[] formatCheck;
 
@@ -96,8 +97,8 @@ namespace PCUConsole
                 }
                 catch (Exception ex)
                 {
-                    lm.Write("MPOUSCharges: SplitLPC:  " + ex.Message);
-                    errMssg.Notify += "MPOUSCharges: SplitLPC:  " + ex.Message + Environment.NewLine;
+                    lm.Write("MPOUSCharges: SplitLPC:  Alias: " + alias + "  " + ex.Message);
+                    errMssg.Notify += "MPOUSCharges: SplitLPC:  Alias: " + alias + "  " + ex.Message + Environment.NewLine;
                 }
             }
             
