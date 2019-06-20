@@ -8,6 +8,57 @@ using LogDefault;
 
 namespace PCUConsole
 {
+    class ItemMarkup
+    {
+        #region class variables
+        protected int itemID = 0;
+        protected string crntCost = "";
+        protected double multiplier = 0;
+        protected string vendorName = "";
+        protected string itemNmbr = "";
+        protected string catalogNmbr = "";
+
+        public int ItemID
+        {
+            get { return itemID; }
+        }
+        public double Multiplier
+        {
+            get { return multiplier; }
+            set { multiplier = value; }
+        }
+        public string CrntCost
+        {
+            get { return crntCost; }
+        }
+        public string ItemNmbr
+        {
+            get { return itemNmbr; }            
+        }
+        public string VendorName
+        {
+            get { return vendorName; }
+        }
+        public string CatalogNmbr
+        {
+            get { return catalogNmbr; }
+        }
+        #endregion
+
+        public void AddItemIDCost(int itmID, string cost)
+        {
+            itemID = itmID;
+            crntCost = cost;
+        }
+
+        public void AddVendItemCtlg(string vendName, string itemNo, string ctlgNo)
+        {
+            vendorName = vendName;
+            itemNmbr = itemNo;
+            catalogNmbr = ctlgNo;
+        }
+    }
+
     class PCUCost
     {
         #region Class Variables
@@ -36,6 +87,7 @@ namespace PCUConsole
         protected bool trace = false;
         protected bool verbose = false;
         protected bool suppressLogEntry = false;
+        private ItemMarkup itemMUFull;
         #endregion
 
         public PCUCost()
@@ -46,7 +98,7 @@ namespace PCUConsole
             trace = Convert.ToBoolean(ConfigData.Get("trace"));
             debug = Convert.ToBoolean(ConfigData.Get("debug"));
             OkToUpdate = Convert.ToBoolean(ConfigData.Get("updateTables"));
-            uwmConnectStr = ConfigData.Get("cnctHEMM_HMC");
+            uwmConnectStr = ConfigData.Get("cnctUWMC_TEST");
             biAdminConnectStr = ConfigData.Get("cnctBIAdmin");
             mpousConnectStr = ConfigData.Get("cnctMPOUS");
         }        
@@ -59,33 +111,49 @@ namespace PCUConsole
         protected void CalculatePatientPrice(Hashtable newPCPrice)         //(Hashtable ItemCost)
         {// set the patientPrice hashtable    
             if (trace) lm.Write("TRACE:  PCUCost.CalculatePatientPrice()");
-            //INCREMENTAL             
+            //INCREMENTAL     
+            ItemMarkup itmMrkUp;
             object item;
             double cost = 0.0;
+            double multiplier = 0.0;
             double patPrice = 0.0;
             patientPrice.Clear();
+            int test = 0;
             try
-            {
+            {   //at this point, newPCPrice is a hashtable with itemID/ItemMarkup object
+                //for each itemID in the hashtable look at its multiplier value in the ItemMarkup
+                //If it has one then set the multiplier value to it otherwise set the multiplier
+                //to multiplierValu[indx]
                 foreach (DictionaryEntry itmCst in newPCPrice)
-                {
+                {                    
                     item = itmCst.Key;
-                    cost = Convert.ToDouble(itmCst.Value);
+                    itmMrkUp = (ItemMarkup)itmCst.Value;                                        
+                    cost = Convert.ToDouble(itmMrkUp.CrntCost);
                     for (int indx = 1; indx <= dollarLimits.Count; indx++)
                     {
-// indx is a key for the dollarLimits and multiplierValu hashtables, that's why it doesn't start at 0
+                        multiplier = Convert.ToDouble(itmMrkUp.Multiplier);
+                        if (multiplier == 0.0)
+                        {
+                            multiplier = Convert.ToDouble(multiplierValu[indx]);
+                        }
+                        else
+                        {
+                            test = 1;
+                        }
+                        // indx is a key for the dollarLimits and multiplierValu hashtables, that's why it doesn't start at 0
                         if (cost <= Convert.ToDouble(dollarLimits[indx]))
                         {
 // here's where the new price gets calculated for a DBUpdate
                            // patPrice = Math.Round(cost*Convert.ToDouble(multiplierValu[indx]), 2);
-                            patPrice = cost * Convert.ToDouble(multiplierValu[indx]);
+                            patPrice = cost * multiplier;
                             patPrice = RoundOffPatPrice(patPrice);
                             //if (patPrice < 10.00)
                             //    patPrice = Math.Round(patPrice, 1, MidpointRounding.AwayFromZero);
                             //else
                             //    patPrice = Math.Round(patPrice);
-
                             break;
                         }
+                        multiplier = 0.0;
                     }
                     patientPrice.Add(item, patPrice);
                     if(!suppressLogEntry)
@@ -98,6 +166,7 @@ namespace PCUConsole
                 errMssg.Notify += "PCUCost: CalculatePatientPrice" + Environment.NewLine;
             }
         }
+
         protected double RoundOffPatPrice(double patPrice)
         {
             if (patPrice < 10.00)
@@ -108,7 +177,8 @@ namespace PCUConsole
         }
 
         protected void CalculatePrice()
-        {//this expects a dataset - itemCost
+        {   // FULL
+            //this expects a dataset - itemCost
             if (trace) lm.Write("TRACE:  PCUCost.CalculatePrice()");
             int itemID = 0;
             double dlrLimit = 0.00;
@@ -117,7 +187,10 @@ namespace PCUConsole
             
             if (changeItemCost.Count == 0 && itemCost.Tables[0].Rows.Count == 0)
                 GetCurrentItemCost();
-
+            //NEW STUFF
+            // change itemCost dataset into an Hashtable of IemMarkup objects -> itemID/itemMUFull
+            //itemID,price,itemNO
+            //END NEW STUFF
             try
             {
                 foreach (DataRow dr in itemCost.Tables[0].Rows)
@@ -126,6 +199,7 @@ namespace PCUConsole
                     if (itemID == 34946)
                         cost = 0.00;
                     cost = Convert.ToDouble(dr.ItemArray[1]);
+
                    for (int tierIndx = 1; tierIndx <= dollarLimits.Count; tierIndx++) //cycle through the 4 or so tiers of new markup values
                     {
                         dlrLimit = Convert.ToDouble(dollarLimits[tierIndx]);
@@ -183,7 +257,7 @@ namespace PCUConsole
 
             try             //UPDATE uwm_BIAdmin.dbo.uwm_IVPItemCost -  This needs to be kept intact during testing and is only used in prod. 
             {
-                ///////////PRODUCTION            From HERE//////////////   --UPDATES THE PatientItemCharge TABLE
+                ///////////PRODUCTION            From HERE....//////////////   --UPDATES THE PatientItemCharge TABLE
                 if (!debug)
                 {
                     ODMDataSetFactory.ExecuteNonQuery(ref Request); // first truncate the uwm_IVPItemCost table
@@ -192,14 +266,14 @@ namespace PCUConsole
                         Console.WriteLine("Updating the PatientItemCharge table with " + dsRefresh.Tables[0].Rows.Count +
                                           " records. This will take a moment or two");
                     foreach (DataRow dr in dsRefresh.Tables[0].Rows)
-                    {
+                    { //[0]=ITEM_ID   [1]=COST  [2]=ITEM_NO
                         Request.Command = "INSERT INTO uwm_BIAdmin.dbo.uwm_IVPItemCost VALUES(" +
                                           dr.ItemArray[0] + "," + dr.ItemArray[1] + ",'" +
                                           dr.ItemArray[2].ToString().Trim() + "')";
                         ODMDataSetFactory.ExecuteNonQuery(ref Request);
                     }
                 }
-                // To HERE////////////// 
+                // ....To HERE////////////// 
             }
             catch (Exception ex)
             {
@@ -214,18 +288,34 @@ namespace PCUConsole
             int itemID = 0;
             double cost = 0.0;
             string itemNo = "";
-            string sqlRefresh = "SELECT  distinct  SI.ITEM_ID, IVP.PRICE, ITEM_NO " +
+            string sqlRefresh = "SELECT  distinct  VEND.NAME,ITEM.ITEM_ID, IVP.PRICE, ITEM_NO " +
                                            "FROM ITEM_VEND_PKG IVP " +
-                                           "JOIN ITEM_VEND IV ON IVP.ITEM_VEND_ID = IV.ITEM_VEND_ID " +
-                                           "JOIN SLOC_ITEM SI ON IVP.ITEM_VEND_ID = SI.ITEM_VEND_ID " +
+                                           "JOIN ITEM_VEND IV ON IVP.ITEM_VEND_ID = IV.ITEM_VEND_ID " +                                           
                                            "JOIN ITEM ON ITEM.ITEM_ID = SI.ITEM_ID " +
+                                           "JOIN SLOC_ITEM SI ON IVP.ITEM_VEND_ID = SI.ITEM_VEND_ID " +
+                                           "JOIN VEND ON VEND.VEND_ID = IV.VEND_ID " +
                                            "WHERE IVP.SEQ_NO = (SELECT MAX (SEQ_NO) FROM ITEM_VEND_PKG WHERE ITEM_VEND_ID = SI.ITEM_VEND_ID) " +
                                            "AND IV.SEQ_NO = (SELECT MIN(SEQ_NO) FROM ITEM_VEND WHERE ITEM_VEND_ID = IVP.ITEM_VEND_ID) " +
                                            "AND LEN(SI.PAT_CHRG_NO) > 0 " +
-                                           "AND SI.STAT = 1 " +
+                                           "AND ITEM.STAT = 1 " +
                                            "AND LEFT(SI.PAT_CHRG_NO,5) <> '40411' " +
                                            "AND IVP.PRICE > 0 " +
-                                           "ORDER BY SI.ITEM_ID ";
+                                           "AND CORP_ID = 1000 " +
+                                           "ORDER BY ITEM.ITEM_NO ";
+           
+            ///OLD SELECT
+            ////"SELECT  distinct  SI.ITEM_ID, IVP.PRICE, ITEM_NO " +
+            ////                               "FROM ITEM_VEND_PKG IVP " +
+            ////                               "JOIN ITEM_VEND IV ON IVP.ITEM_VEND_ID = IV.ITEM_VEND_ID " +
+            ////                               "JOIN SLOC_ITEM SI ON IVP.ITEM_VEND_ID = SI.ITEM_VEND_ID " +
+            ////                               "JOIN ITEM ON ITEM.ITEM_ID = SI.ITEM_ID " +
+            ////                               "WHERE IVP.SEQ_NO = (SELECT MAX (SEQ_NO) FROM ITEM_VEND_PKG WHERE ITEM_VEND_ID = SI.ITEM_VEND_ID) " +
+            ////                               "AND IV.SEQ_NO = (SELECT MIN(SEQ_NO) FROM ITEM_VEND WHERE ITEM_VEND_ID = IVP.ITEM_VEND_ID) " +
+            ////                               "AND LEN(SI.PAT_CHRG_NO) > 0 " +
+            ////                               "AND SI.STAT = 1 " +
+            ////                               "AND LEFT(SI.PAT_CHRG_NO,5) <> '40411' " +
+            ////                               "AND IVP.PRICE > 0 " +
+            ////                               "ORDER BY SI.ITEM_ID ";
 
             ODMRequest Request = new ODMRequest();
             Request.ConnectString = uwmConnectStr;

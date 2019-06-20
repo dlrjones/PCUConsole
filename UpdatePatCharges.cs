@@ -7,6 +7,7 @@ using OleDBDataManager;
 
 namespace PCUConsole
 {
+    
     class UpdatePatCharges : PCUCost
     {//UpdatePatCharges is invoked when the user clicks the "Incremental GetItemChanges" button 
         //on the PatientChargeUpdate UI or when a scheduled task triggers it.
@@ -74,7 +75,7 @@ namespace PCUConsole
         {
             ConfigData = (NameValueCollection)ConfigurationSettings.GetConfig("PatientChargeUpdate");
             biAdminConnectStr = ConfigData.Get("cnctBIAdmin");
-            uwmConnectStr = ConfigData.Get("cnctHEMM_HMC");
+            uwmConnectStr = ConfigData.Get("cnctUWMC_TEST");
             OkToUpdate = Convert.ToBoolean(ConfigData.Get("updateTables"));
             trace = Convert.ToBoolean(ConfigData.Get("trace"));
             ODMDataSetFactory = new ODMDataFactory();
@@ -134,13 +135,14 @@ namespace PCUConsole
 
         private void CompareCost()
         {//INCREMENTAL
+            ItemMarkup im;
             if (trace) lm.Write("TRACE:  UpdatePatCharges.CompareCost()");
             int itemID = 0;
             string prevCost = "";
             string crntCost = "";
             //compare the itemID's from previous & current Item Cost hashtables
             //when they match, compare the two costs. if the costs don't match then
-            //fill the hashtable with the cost values that need to be updated
+            //fill the changeItemCost hashtable with the cost values that need to be updated
             foreach (DictionaryEntry pic in previousItemCost)
             {
                 try
@@ -152,7 +154,9 @@ namespace PCUConsole
                         crntCost = currentItemCost[itemID].ToString();
                         if (prevCost != crntCost)
                         {
-                            changeItemCost.Add(itemID, crntCost);  //items that had a cost change are captured here
+                            im = new ItemMarkup();
+                            im.AddItemIDCost(itemID, crntCost);
+                            changeItemCost.Add(itemID, im);  //items that had a cost change are captured here
                             lm.Write("Cost Change:   (id-old-new)" + TAB + itemID + TAB + FormatDollarValue(prevCost) + TAB + FormatDollarValue(crntCost));
                         }
                     }
@@ -163,10 +167,23 @@ namespace PCUConsole
                     errMssg.Notify += "UpdatePatCharges: CompareCost:  " + ex.Message + Environment.NewLine;
                 }
             }
-            updateCount = changeItemCost.Count;
-            lm.Write("UpdatePatCharges.CompareCost: updateCount = " + updateCount);
-            if(updateCount == 0)
-                lm.Write("UpdatePatCharges.CompareCost: There were no patient charges to update on the HEMM side.");
+            try
+            {
+                //NEW STUFF
+                Reprocess rep = new Reprocess();
+                rep.NewItemCost = changeItemCost;
+                rep.UwmConnectStr = uwmConnectStr;
+                rep.CheckForReprocessedItems();
+                changeItemCost = rep.NewItemCost;
+                //END NEW STUFF
+                updateCount = changeItemCost.Count;
+                lm.Write("UpdatePatCharges.CompareCost: updateCount = " + updateCount);
+                if (updateCount == 0)
+                    lm.Write("UpdatePatCharges.CompareCost: There were no patient charges to update on the HEMM side.");
+            }catch(Exception ex)
+            {
+                lm.Write("UpdatePatCharges.CompareCost: " + ex.Message);
+            }
         }
 
         public void UpdateTables()
@@ -185,13 +202,13 @@ namespace PCUConsole
                 pc.ConnectStr = ConfigData.Get("cnctBIAdmin");  //////// USE THIS FOR TEST 
             else
             {
-                pc.ConnectStr = ConfigData.Get("cnctHEMM_HMC");   //////// USE THIS FOR PRODUCTION 
+                pc.ConnectStr = ConfigData.Get("cnctHMC_TEST");   //////// USE THIS FOR PRODUCTION  (change to cnctHEMM_HMC)
             }           
             pc.PatientPrice = patientPrice;
             pc.Debug = debug;
             pc.Trace = trace;
             pc.Verbose = verbose;
-            if (OkToUpdate)
+            if (OkToUpdate)         //this comes from the updateTables param in app.config
             {
                 pc.UpdateCharges();
                // updateCount = pc.UpdateCount;  //commented out for test, now getting this count from line# 166

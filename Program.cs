@@ -14,7 +14,7 @@ namespace PCUConsole
         /*
          * TABLES USED IN UWM_BIADMIN
          * uwm_IVPItemCost -- This holds the last current item cost values (since the previous update to pat_chrg_values)
-         * uwm_PatientChargeTierLevels -- This holds the current Tier values which tells you which multiplier to use to get the pat_chrg values from a given item cost
+         * uwm_New_PatientChargeTierLevels -- This holds the current Tier values which tells you which multiplier to use to get the pat_chrg values from a given item cost
          * uwm_MPOUS_LocProcCode -- This holds the last current Location Procedure Code from MPOUS (since the previous update to pat_chrg_values)    
          * uwm_SLOC_ITEM -- Used to test this application; it's a stand-in for the real HEMM.SLOC_ITEM table         
          * [uwm_D_INVENTORY_ITEMS] -- MPOUS.  Used to test this application; it's a stand-in for the real D_INVENTORY_ITEMS table. 
@@ -42,6 +42,7 @@ namespace PCUConsole
         private static bool debug = true;
         private static bool trace = false;
         private static string currentTask = ""; //"incremental" or "full"
+        private static string xpnse_accnt = "";
         private static string dbugText = "";
         private static int updateCount = 0;
         private static int mpousCount = 0;
@@ -62,6 +63,7 @@ namespace PCUConsole
                 debug = Convert.ToBoolean(ConfigData.Get("debug"));
                 trace = Convert.ToBoolean(ConfigData.Get("trace"));
                 verbose = Convert.ToBoolean(ConfigData.Get("verbose"));
+                xpnse_accnt = ConfigData.Get("xpnse_accnt");
                 lm.LogFile = ConfigData.Get("logFile") + dtu.DateTimeCoded() + ".txt";
                 lm.LogFilePath = ConfigData.Get("logFilePath");
                 lm.Debug = debug;
@@ -116,6 +118,7 @@ namespace PCUConsole
             pcu.Verbose = verbose;
             pcu.Debug = debug;
             pcu.Trace = trace;
+            pcu.Xpnse_accnt = xpnse_accnt;
             pcu.Process();
             updateCount = pcu.UpdateCount;
             dollarLimits = pcu.DollarLimits;

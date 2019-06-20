@@ -20,6 +20,7 @@ namespace PCUConsole
         private string dbSelectStr = "";
         private string recordDate = "";
         private string location = "";
+        private string xpnse_accnt = "";
         private int attributeCount = 0;
         private int updateCount = 0;
         private bool goodToGo = true;
@@ -48,6 +49,10 @@ namespace PCUConsole
         public int UpdateCount
         {
             get { return updateCount; }
+        }
+        public string Xpnse_accnt
+        {
+            set { xpnse_accnt = value; }
         }
         public bool Verbose
         {
@@ -78,9 +83,28 @@ namespace PCUConsole
         {
             if (trace) lm.Write("TRACE:  DataManager.GetCurrentTierValues()");
             lm.Write("PCUConsole:DataManager:GetCurrentTierValues()");
-            string select = "SELECT * FROM uwm_BIAdmin.dbo.uwm_PatientChargeTierLevels " +
-                            "WHERE CHANGE_DATE = (select MAX(CHANGE_DATE) from uwm_BIAdmin.dbo.uwm_PatientChargeTierLevels) ";
+            string select = "SELECT * FROM uwm_BIAdmin.dbo.uwm_New_PatientChargeTierLevels " +
+                            "WHERE CHANGE_DATE = (select MAX(CHANGE_DATE) from uwm_BIAdmin.dbo.uwm_New_PatientChargeTierLevels) ";
             DBReadLatestTierValues(select);
+        }
+
+        public ArrayList RunQuery(string connectStr, string sqlQuery)
+        {
+            ArrayList alResults = new ArrayList();
+            ODMRequest Request = new ODMRequest();
+            Request.ConnectString = connectStr;
+            Request.CommandType = CommandType.Text;
+            Request.Command = sqlQuery;
+            try
+            {
+                alResults = ODMDataSetFactory.ExecuteDataReader(ref Request, attributeCount);                
+            }
+            catch (Exception ex)
+            {
+                lm.Write("DataManager: RunQuery:  " + ex.Message);
+                errMssg.Notify += "DataManager: RunQuery:  " + ex.Message + Environment.NewLine;
+            }
+            return alResults;
         }
 
         private void DBReadLatestTierValues(string select)
@@ -184,6 +208,65 @@ namespace PCUConsole
             }
         }
 
+        public DataSet GetReprocData(string connectStr,string inClause)
+        {
+            DataSet dsReproc = new DataSet();
+            ODMRequest Request = new ODMRequest();
+            Request.ConnectString = connectStr;
+            Request.CommandType = CommandType.Text;
+            Request.Command = BuildReprocQuery(inClause);
+            try
+            {
+                dsReproc = ODMDataSetFactory.ExecuteDataSetBuild(ref Request);                
+            }
+            catch(Exception ex)
+            {
+                lm.Write("DataManager: GetReprocData:  " + ex.Message);
+                errMssg.Notify += "DataManager: DBReadLatGetReprocDataestTierValues:  " + ex.Message + Environment.NewLine;
+            }
+            return dsReproc;
+        }
+
+        public string GetOEMCost(string connectStr,string vendName, string itemNo, string ctlgNo)
+        {
+            ArrayList oemCost = new ArrayList(); 
+            DataSet dsReproc = new DataSet();
+            ODMRequest Request = new ODMRequest();
+            Request.ConnectString = connectStr;
+            Request.CommandType = CommandType.Text;
+            Request.Command = BuildCostQuery(vendName,itemNo,ctlgNo);
+            try
+            {
+                oemCost = ODMDataSetFactory.ExecuteDataReader(ref Request);
+            }
+            catch (Exception ex)
+            {
+                lm.Write("DataManager: GetReprocData:  " + ex.Message);
+                errMssg.Notify += "DataManager: GetReprocData:  " + ex.Message + Environment.NewLine;
+            }
+            return oemCost.Count > 0 ? oemCost[0].ToString() : ""; 
+        }
+
+        public string GetSecondaryVendorCost(string connectStr, string itemNo)
+        {//itemNo is the number of the reproc item without the "R"
+            ArrayList vendor = new ArrayList();
+            DataSet dsReproc = new DataSet();
+            ODMRequest Request = new ODMRequest();
+            Request.ConnectString = connectStr;
+            Request.CommandType = CommandType.Text;
+            Request.Command = BuildSecondaryVendCostQuery(itemNo);
+            try
+            {
+                vendor = ODMDataSetFactory.ExecuteDataReader(ref Request);
+            }
+            catch (Exception ex)
+            {
+                lm.Write("DataManager: GetSecondaryVendorCost:  " + ex.Message);
+                errMssg.Notify += "DataManager: GetSecondaryVendorCost:  " + ex.Message + Environment.NewLine;
+            }
+            return vendor.Count > 0 ? vendor[0].ToString() : "";
+        }
+
         public void DBWrite()
         {//FULL UPDATE
             if (trace) lm.Write("TRACE:  DataManager.DBWrite()");
@@ -210,9 +293,11 @@ namespace PCUConsole
         {
             if (trace) lm.Write("TRACE:  DataManager.GetConnectString()");
             if (loc == "hmc")
-                connectStr = ConfigData.Get("cnctHEMM_HMC");
+                connectStr = ConfigData.Get("cnctHMC_TEST");
+                //connectStr = ConfigData.Get("cnctHEMM_HMC");
             else if (loc == "uwmc")
-                connectStr = ConfigData.Get("cnctHEMM_UWMC");
+                connectStr = ConfigData.Get("cnctUWMC_TEST");
+                //connectStr = ConfigData.Get("cnctHEMM_UWMC");
             else if (loc == "mpous")
                 connectStr = ConfigData.Get("cnctMPOUS");
             else if (loc == "nwh")
@@ -220,8 +305,59 @@ namespace PCUConsole
             else if (loc == "vmc")
                 connectStr = ConfigData.Get("cnctHEMM_VMC");
             return connectStr;
+        }       
+
+        private string BuildSecondaryVendCostQuery(string itemNo)
+        {
+            string select = "SELECT DISTINCT PRICE " +
+                            "FROM ITEM_VEND IV " +
+                            "JOIN ITEM_VEND_PKG IVP ON IVP.ITEM_VEND_ID = IV.ITEM_VEND_ID " +
+                            "WHERE VEND_ID = " +
+                                "(SELECT IV.VEND_ID " +
+                                "FROM ITEM " +
+                                "JOIN ITEM_VEND IV ON IV.ITEM_ID = ITEM.ITEM_ID " +
+                                "JOIN VEND ON VEND.VEND_ID = IV.VEND_ID " +
+                                "WHERE CORP_ID = 1000 " +
+                                "AND IV.SEQ_NO = (SELECT MAX(SEQ_NO) FROM ITEM_VEND WHERE ITEM_VEND.ITEM_ID = ITEM.ITEM_ID)  " +
+                                "AND ITEM.ITEM_NO = '" + itemNo + "') " +
+                            "AND ITEM_ID = (SELECT ITEM_ID FROM ITEM WHERE ITEM_NO = '" + itemNo + "') " +
+                            "AND IVP.SEQ_NO = (SELECT MAX(SEQ_NO) FROM ITEM_VEND_PKG WHERE ITEM_VEND_ID = IV.ITEM_VEND_ID)";
+            return select;
         }
-     
+
+        private string BuildCostQuery(string vendName,string itemNo, string ctlgNo)
+        {
+            string select = "SELECT PRICE " +
+                            "FROM ITEM " +
+                            "JOIN ITEM_VEND IV ON IV.ITEM_ID = ITEM.ITEM_ID " +
+                            "JOIN ITEM_VEND_PKG IVP ON IVP.ITEM_VEND_ID = IV.ITEM_VEND_ID " +
+                            "JOIN VEND ON VEND.VEND_ID = IV.VEND_ID " +
+                            "WHERE CORP_ID = 1000 " +
+                            "AND IVP.SEQ_NO = (SELECT MAX(SEQ_NO) " +
+                                                "FROM ITEM_VEND_PKG " +
+                                                "WHERE ITEM_VEND_ID = IV.ITEM_VEND_ID) " +
+                            "AND ITEM_NO = '" + itemNo + "' " +
+                            "AND ITEM.CTLG_NO = '" + ctlgNo + "' " +
+                            "AND ITEM.STAT = 1 ";
+            if (vendName.Length > 0)
+                select += "AND VEND.NAME = '" + vendName + "' ";
+            return select;
+        }
+
+        private string BuildReprocQuery(string inClause)
+        {
+            string select = "SELECT VEND.NAME,IV.ITEM_ID, RTRIM(ITEM_NO) ITEM_NO, RTRIM(ITEM.CTLG_NO) [ITEM CAT NO],IVP.PRICE " +
+                            "FROM ITEM_VEND_PKG IVP " +
+                            "JOIN ITEM_VEND IV ON IVP.ITEM_VEND_ID = IV.ITEM_VEND_ID " + 
+                            "JOIN ITEM ON ITEM.ITEM_ID = IV.ITEM_ID " +
+                            "JOIN VEND ON VEND.VEND_ID = IV.VEND_ID " +
+                            "WHERE CORP_ID = 1000 " +
+                            "AND IV.ITEM_ID IN( " + inClause + ") " +
+                            "AND IVP.SEQ_NO = (SELECT MAX (SEQ_NO) FROM ITEM_VEND_PKG WHERE ITEM_VEND_ID = IV.ITEM_VEND_ID) " +
+                            "AND RIGHT(RTRIM(ITEM_NO),1) = 'R' ";
+            return select;
+        }
+
         private string BuildMPOUSSelectString()
         {
             if (trace) lm.Write("TRACE:  DataManager.BuildMPOUSSelectString()");
@@ -239,17 +375,21 @@ namespace PCUConsole
         {
             if (trace) lm.Write("TRACE:  DataManager.BuildHEMM_UWMSelectString()");
             string select =
-                "SELECT  distinct  SI.ITEM_ID, IVP.PRICE, ITEM_NO, SI.PAT_CHRG_PRICE " +
+                "SELECT  distinct  SI.ITEM_ID, IVP.PRICE, ITEM_NO, SI.PAT_CHRG_PRICE, EXP_ACCT_NO " +
                 "FROM ITEM_VEND_PKG IVP " +
                 "JOIN ITEM_VEND IV ON IVP.ITEM_VEND_ID = IV.ITEM_VEND_ID " +
                 "JOIN SLOC_ITEM SI ON IVP.ITEM_VEND_ID = SI.ITEM_VEND_ID " +
                 "JOIN ITEM ON ITEM.ITEM_ID = SI.ITEM_ID " +
+                "JOIN ITEM_CORP_ACCT ON ITEM.ITEM_ID = ITEM_CORP_ACCT.ITEM_ID " +
                 "WHERE IVP.SEQ_NO = (SELECT MAX (SEQ_NO) FROM ITEM_VEND_PKG WHERE ITEM_VEND_ID = SI.ITEM_VEND_ID) " +
+                "AND IVP.PRICE > 0 " +
                 "AND IV.SEQ_NO = (SELECT MIN(SEQ_NO) FROM ITEM_VEND WHERE ITEM_VEND_ID = IVP.ITEM_VEND_ID) " +
                 "AND LEN(SI.PAT_CHRG_NO) > 0 " +
                 "AND SI.STAT = 1 " +
                 "AND LEFT(SI.PAT_CHRG_NO,5) <> '40411' " +
-                "AND IVP.PRICE > 0 " +
+                "AND ((IVP.PRICE > 49.99 AND (RIGHT(SI.PAT_CHRG_NO,5) <> '00000') " +
+                "OR(IVP.PRICE < 50 AND(RIGHT(SI.PAT_CHRG_NO, 5) <> '00000')))" +
+                "OR (EXP_ACCT_NO = " + xpnse_accnt + " AND IVP.PRICE > 0))" +                
                 "ORDER BY SI.ITEM_ID ";
             return select;
         }

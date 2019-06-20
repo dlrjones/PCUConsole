@@ -15,6 +15,7 @@ namespace PCUConsole
         private ErrorMonitor errMssg = ErrorMonitor.GetInstance();
         private byte locationCode = 0;
         private string currentTask = ""; //"incremental" or "full";
+        private string xpnse_accnt = "";
         private bool verbose = false;
         private bool debug = false;
         private bool trace = false;
@@ -45,6 +46,10 @@ namespace PCUConsole
         {
             set { currentTask = value; }
         }
+        public string Xpnse_accnt
+        {
+            set { xpnse_accnt = value; }
+        }
         public bool Verbose
         {
             set { verbose = value; }
@@ -70,6 +75,7 @@ namespace PCUConsole
                 dm.Verbose = verbose;
                 dm.Debug = debug;
                 dm.Trace = trace;
+                dm.Xpnse_accnt = xpnse_accnt;
                 ReadPCValues();
                 if (currentTask.Equals("incremental"))
                 {

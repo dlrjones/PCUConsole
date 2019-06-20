@@ -105,7 +105,7 @@ namespace PCUConsole
                 pc.ConnectStr = biAdminConnectStr;  //use for TEST
             else
             {   
-                pc.ConnectStr = ConfigData.Get("cnctHEMM_HMC");  //////// USE THIS FOR PRODUCTION 
+                pc.ConnectStr = ConfigData.Get("cnctUWMC_TEST");  //////// USE THIS FOR PRODUCTION 
             }
             pc.PatientPrice = patientPrice;    
             pc.Debug = debug;
