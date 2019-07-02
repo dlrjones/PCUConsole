@@ -14,13 +14,14 @@ namespace PCUConsole
         private Hashtable dollarLimits = new Hashtable();
         private Hashtable multiplierValu = new Hashtable();
         private Hashtable patientPrice = new Hashtable();
+        private Hashtable xpnse_accnt = new Hashtable();
+        private Hashtable prevCostTable = new Hashtable();
         private ArrayList locations = new ArrayList();
         private DataSet itemsToProcess = new DataSet();
         private string connectStr = "";
         private string dbSelectStr = "";
         private string recordDate = "";
         private string location = "";
-        private string xpnse_accnt = "";
         private int attributeCount = 0;
         private int updateCount = 0;
         private bool goodToGo = true;
@@ -50,9 +51,13 @@ namespace PCUConsole
         {
             get { return updateCount; }
         }
-        public string Xpnse_accnt
+        public Hashtable Xpnse_accnt
         {
             set { xpnse_accnt = value; }
+        }
+        public Hashtable PrevCostTable
+        {
+            set { prevCostTable = value; }
         }
         public bool Verbose
         {
@@ -79,17 +84,19 @@ namespace PCUConsole
             attributeCount =  Convert.ToInt32(ConfigData.Get("attribCount"));
         }
 
-        public void GetCurrentTierValues()
+        public void GetCurrentTierValues(string hosp)
         {
             if (trace) lm.Write("TRACE:  DataManager.GetCurrentTierValues()");
             lm.Write("PCUConsole:DataManager:GetCurrentTierValues()");
             string select = "SELECT * FROM uwm_BIAdmin.dbo.uwm_New_PatientChargeTierLevels " +
-                            "WHERE CHANGE_DATE = (select MAX(CHANGE_DATE) from uwm_BIAdmin.dbo.uwm_New_PatientChargeTierLevels) ";
+                            "WHERE CHANGE_DATE = (select MAX(CHANGE_DATE) from uwm_BIAdmin.dbo.uwm_New_PatientChargeTierLevels) " +
+                            "AND HOSP = '" + hosp + "' ";
             DBReadLatestTierValues(select);
         }
 
         public ArrayList RunQuery(string connectStr, string sqlQuery)
         {
+            if (trace) lm.Write("TRACE:  DataManager.RunQuery()");
             ArrayList alResults = new ArrayList();
             ODMRequest Request = new ODMRequest();
             Request.ConnectString = connectStr;
@@ -113,7 +120,7 @@ namespace PCUConsole
             lm.Write("PCUConsole:DataManager:DBReadLatestTierValues()");
             dollarLimits.Clear();
             multiplierValu.Clear();
-
+            connectStr = ConfigData.Get("cnctBIAdmin");
             ArrayList alResults = new ArrayList();
             ODMRequest Request = new ODMRequest();
             Request.ConnectString = connectStr;
@@ -145,14 +152,16 @@ namespace PCUConsole
             multiplierValu.Clear();
             foreach (var item in results)
             {
-                if (counter == attributeCount)
+                if (item.ToString() == "hmc" || item.ToString() == "mpous" || item.ToString() == "uwmc" || item.ToString() == "nw")
+                    continue;
+                if (counter == attributeCount-1)
                 {
-                    recordDate = item.ToString();
+                    recordDate = item.ToString();                    
                 }
                 else
                 {
                     if (counter % 2 > 0)  //an odd counter value implies a $value, even a multiplier
-                        {
+                    {
                             dlrValu = Convert.ToDouble(item);                            
                         }
                         else
@@ -173,43 +182,62 @@ namespace PCUConsole
 
         public void DBUpdate()
         {//INCREMENTAL    
+         //  loc =  ("hmc");("uwmc");("mpous");("nwh");("val");
+
             if (trace) lm.Write("TRACE:  DataManager.DBUpdate()");
-            UpdatePatCharges uc = new UpdatePatCharges();
+            UpdatePatCharges upc = new UpdatePatCharges();
             foreach (string loc in locations)
             {
+                lm.Write("Location: " + loc);
                 if (loc == "mpous")
-                {//THIS WAS FOR ITEMS STILL LISTED AS USING THE VIRTUAL LOCATION INV TOUCHSCAN ESI
-                 //that location is gone and now we have to look at each mpous item to determine 
-                 //the necessary updates. see the MPOUSCharges class (the PointOfUse class isn't used).
+                {
+                    #region THIS WAS FOR ITEMS STILL LISTED AS USING THE VIRTUAL LOCATION INV TOUCHSCAN ESI
+                    //that location is gone and now we have to look at each mpous item to determine 
+                    //the necessary updates. see the MPOUSCharges class (the PointOfUse class isn't used).
 
-                    continue;
-                    //if (uc.PatientPrice.Count > 0)
-                    //{
-                    //    PointOfUse pou = new PointOfUse();
-                    //    pou.Verbose = verbose;
-                    //    pou.Debug = debug;
-                    //    pou.PriceToPatient = uc.PatientPrice;
-                    //    pou.ProcessMPOUSChanges();
-                    //    pou.RefreshPreviousValues();
-                    //}
+                    continue;                   
+                    #endregion                   
                 }
                 else
-                {
-                    uc.ConnectString = GetConnectString(loc);
-                    uc.Location = loc;
-                    uc.Verbose = verbose;
-                    uc.Debug = debug;
-                    uc.SQLSelect = BuildHEMM_UWMSelectString();
-                    uc.DollarLimits = dollarLimits;
-                    uc.MultiplierValu = multiplierValu;
-                    uc.GetPatientPrice();
-                    updateCount = uc.UpdateCount;
+                {                    
+                    upc.Location = loc;
+                    upc.Verbose = verbose;
+                    upc.Debug = debug;
+                    upc.ConnectString = GetConnectString(loc);
+                    upc.ChangeItemCost = new Hashtable();
+                    upc.SQLSelect = BuildHEMM_UWMSelectString(xpnse_accnt[loc].ToString());
+                    GetCurrentTierValues(loc);  //tier values can change from one entity to another - from here you get dollarLimits and multiplierValu
+                    upc.DollarLimits = dollarLimits;
+                    upc.MultiplierValu = multiplierValu;
+                    upc.PrevCostTable = prevCostTable;
+                    upc.GetPatientPrice();
+                    updateCount = upc.UpdateCount;
                 }
             }
         }
 
+        public void ZeroOutValues(string biAdminConnectStr)
+        {//set the cost for all items in the uwm_IVPItemCost table to 0.00;
+         //this will force all items to be updated, not just those that have changed
+            if (trace) lm.Write("TRACE:  DataManager.ZeroOutValues()");
+            foreach (string hosp in locations)
+            {
+                if (hosp == "mpous")
+                    continue;
+                ODMRequest Request = new ODMRequest();
+                Request.ConnectString = biAdminConnectStr;
+                Request.CommandType = CommandType.Text;
+                Request.Command = "UPDATE [uwm_BIAdmin].[dbo]." + prevCostTable[hosp].ToString() + " " +
+                                   "SET COST = 0.00 ";
+                //"WHERE ITEM_ID = 1091";
+                ODMDataSetFactory.ExecuteNonQuery(ref Request);
+            }
+
+        }
+
         public DataSet GetReprocData(string connectStr,string inClause)
         {
+            if (trace) lm.Write("TRACE:  DataManager.GetReprocData()");
             DataSet dsReproc = new DataSet();
             ODMRequest Request = new ODMRequest();
             Request.ConnectString = connectStr;
@@ -229,6 +257,7 @@ namespace PCUConsole
 
         public string GetOEMCost(string connectStr,string vendName, string itemNo, string ctlgNo)
         {
+            if (trace) lm.Write("TRACE:  DataManager.GetOEMCost()");
             ArrayList oemCost = new ArrayList(); 
             DataSet dsReproc = new DataSet();
             ODMRequest Request = new ODMRequest();
@@ -249,6 +278,7 @@ namespace PCUConsole
 
         public string GetSecondaryVendorCost(string connectStr, string itemNo)
         {//itemNo is the number of the reproc item without the "R"
+            if (trace) lm.Write("TRACE:  DataManager.GetSecondaryVendorCost()");            
             ArrayList vendor = new ArrayList();
             DataSet dsReproc = new DataSet();
             ODMRequest Request = new ODMRequest();
@@ -281,9 +311,10 @@ namespace PCUConsole
                 if (loc == "mpous")
                     pcc.SQLSelect = BuildMPOUSSelectString();
                 else
-                    pcc.SQLSelect = BuildHEMM_UWMSelectString();
+                    pcc.SQLSelect = BuildHEMM_UWMSelectString(xpnse_accnt[loc].ToString());
 
                 pcc.ConnectString = GetConnectString(loc);
+                pcc.PrevCostTable = prevCostTable;
                 pcc.Location = loc;
                 pcc.SetNewPatientCharges();
             }            
@@ -294,12 +325,12 @@ namespace PCUConsole
             if (trace) lm.Write("TRACE:  DataManager.GetConnectString()");
             if (loc == "hmc")
                 connectStr = ConfigData.Get("cnctHMC_TEST");
-                //connectStr = ConfigData.Get("cnctHEMM_HMC");
+                //connectStr = ConfigData.Get("cnctHMC_TEST");
             else if (loc == "uwmc")
                 connectStr = ConfigData.Get("cnctUWMC_TEST");
                 //connectStr = ConfigData.Get("cnctHEMM_UWMC");
             else if (loc == "mpous")
-                connectStr = ConfigData.Get("cnctMPOUS");
+                connectStr = ConfigData.Get(" cnctMPOUS_TEST");
             else if (loc == "nwh")
                 connectStr = ConfigData.Get("cnctHEMM_NWH");
             else if (loc == "vmc")
@@ -309,6 +340,7 @@ namespace PCUConsole
 
         private string BuildSecondaryVendCostQuery(string itemNo)
         {
+            if (trace) lm.Write("TRACE:  DataManager.BuildSecondaryVendCostQuery()");            
             string select = "SELECT DISTINCT PRICE " +
                             "FROM ITEM_VEND IV " +
                             "JOIN ITEM_VEND_PKG IVP ON IVP.ITEM_VEND_ID = IV.ITEM_VEND_ID " +
@@ -327,6 +359,7 @@ namespace PCUConsole
 
         private string BuildCostQuery(string vendName,string itemNo, string ctlgNo)
         {
+            if (trace) lm.Write("TRACE:  DataManager.BuildCostQuery()");
             string select = "SELECT PRICE " +
                             "FROM ITEM " +
                             "JOIN ITEM_VEND IV ON IV.ITEM_ID = ITEM.ITEM_ID " +
@@ -346,6 +379,7 @@ namespace PCUConsole
 
         private string BuildReprocQuery(string inClause)
         {
+            if (trace) lm.Write("TRACE:  DataManager.BuildReprocQuery()");            
             string select = "SELECT VEND.NAME,IV.ITEM_ID, RTRIM(ITEM_NO) ITEM_NO, RTRIM(ITEM.CTLG_NO) [ITEM CAT NO],IVP.PRICE " +
                             "FROM ITEM_VEND_PKG IVP " +
                             "JOIN ITEM_VEND IV ON IVP.ITEM_VEND_ID = IV.ITEM_VEND_ID " + 
@@ -360,6 +394,7 @@ namespace PCUConsole
 
         private string BuildMPOUSSelectString()
         {
+            if (trace) lm.Write("TRACE:  DataManager.BuildMPOUSSelectString()");           
             if (trace) lm.Write("TRACE:  DataManager.BuildMPOUSSelectString()");
             string select =
                 "SELECT DISTINCT  Alias_Id, [Location_Procedure_Code] " +
@@ -371,7 +406,7 @@ namespace PCUConsole
             return select;          //DII.ITEM_ID,
         }
 
-        private string BuildHEMM_UWMSelectString()
+        private string BuildHEMM_UWMSelectString(string expAccnt)
         {
             if (trace) lm.Write("TRACE:  DataManager.BuildHEMM_UWMSelectString()");
             string select =
@@ -389,7 +424,7 @@ namespace PCUConsole
                 "AND LEFT(SI.PAT_CHRG_NO,5) <> '40411' " +
                 "AND ((IVP.PRICE > 49.99 AND (RIGHT(SI.PAT_CHRG_NO,5) <> '00000') " +
                 "OR(IVP.PRICE < 50 AND(RIGHT(SI.PAT_CHRG_NO, 5) <> '00000')))" +
-                "OR (EXP_ACCT_NO = " + xpnse_accnt + " AND IVP.PRICE > 0))" +                
+                "OR (EXP_ACCT_NO = " + expAccnt + " AND IVP.PRICE > 0))" +                
                 "ORDER BY SI.ITEM_ID ";
             return select;
         }

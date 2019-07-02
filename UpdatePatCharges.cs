@@ -23,6 +23,10 @@ namespace PCUConsole
         {
             get { return updateCount; }
         }
+        public Hashtable PrevCostTable
+        {
+            set { prevCostTable = value; }
+        }
         public Hashtable DollarLimits           
         {
             get { return dollarLimits; }
@@ -36,6 +40,7 @@ namespace PCUConsole
         public Hashtable ChangeItemCost
         {
             get { return changeItemCost; }
+            set { changeItemCost = value; }
         }
         public Hashtable PatientPrice
         {
@@ -75,7 +80,7 @@ namespace PCUConsole
         {
             ConfigData = (NameValueCollection)ConfigurationSettings.GetConfig("PatientChargeUpdate");
             biAdminConnectStr = ConfigData.Get("cnctBIAdmin");
-            uwmConnectStr = ConfigData.Get("cnctUWMC_TEST");
+            uwmConnectStr = ConfigData.Get("cnctHMC_TEST");
             OkToUpdate = Convert.ToBoolean(ConfigData.Get("updateTables"));
             trace = Convert.ToBoolean(ConfigData.Get("trace"));
             ODMDataSetFactory = new ODMDataFactory();
@@ -103,7 +108,7 @@ namespace PCUConsole
             {
                 GetPreviousItemCostList();//this comes from uwm_IVPItemCost
                 GetCurrentItemCost(); //this works for HEMM but not MPOUS - the itemID's in MPOUS are different from those in HEMM
-                currentItemCost = ConvertToHashTable(itemCost);
+                currentItemCost = ConvertToHashTable(itemCost);  //itemCost is a dataset collected from the production db
                 if (verbose)
                     Console.WriteLine(currentItemCost.Count + " records");
                 CompareCost();
@@ -121,7 +126,7 @@ namespace PCUConsole
             ODMRequest Request = new ODMRequest();
             Request.ConnectString = ConfigData.Get("cnctBIAdmin");
             Request.CommandType = CommandType.Text;
-            Request.Command = "Select ITEM_ID, COST from uwm_BIAdmin.dbo.uwm_IVPItemCost";
+            Request.Command = "Select ITEM_ID, COST from [uwm_BIAdmin].[dbo]." + prevCostTable[location].ToString() + " "; 
             try
             {
                 previousItemCost = ConvertToHashTable(ODMDataSetFactory.ExecuteDataSetBuild(ref Request));
@@ -140,9 +145,10 @@ namespace PCUConsole
             int itemID = 0;
             string prevCost = "";
             string crntCost = "";
+            int itemCount = 0;
             //compare the itemID's from previous & current Item Cost hashtables
             //when they match, compare the two costs. if the costs don't match then
-            //fill the changeItemCost hashtable with the cost values that need to be updated
+            //fill the changeItemCost hashtable with the cost values that need to be converted to new patient charges
             foreach (DictionaryEntry pic in previousItemCost)
             {
                 try
@@ -151,15 +157,20 @@ namespace PCUConsole
                     prevCost = pic.Value.ToString();
                     if (currentItemCost.ContainsKey(itemID))
                     {
-                        crntCost = currentItemCost[itemID].ToString();
+                        crntCost = currentItemCost[itemID].ToString(); //this is the value which may have changed
                         if (prevCost != crntCost)
                         {
                             im = new ItemMarkup();
                             im.AddItemIDCost(itemID, crntCost);
+                            //if (itemID == 32429)
+                            //    itemID = 32429;
                             changeItemCost.Add(itemID, im);  //items that had a cost change are captured here
                             lm.Write("Cost Change:   (id-old-new)" + TAB + itemID + TAB + FormatDollarValue(prevCost) + TAB + FormatDollarValue(crntCost));
                         }
                     }
+
+                    //if (itemCount++ == 5000)      //Use this for creating limited sized data sets
+                    //    break;
                 }
                 catch (Exception ex)
                 {
@@ -173,6 +184,7 @@ namespace PCUConsole
                 Reprocess rep = new Reprocess();
                 rep.NewItemCost = changeItemCost;
                 rep.UwmConnectStr = uwmConnectStr;
+                rep.Location = location;
                 rep.CheckForReprocessedItems();
                 changeItemCost = rep.NewItemCost;
                 //END NEW STUFF
@@ -201,8 +213,26 @@ namespace PCUConsole
             if(debug)
                 pc.ConnectStr = ConfigData.Get("cnctBIAdmin");  //////// USE THIS FOR TEST 
             else
-            {
-                pc.ConnectStr = ConfigData.Get("cnctHMC_TEST");   //////// USE THIS FOR PRODUCTION  (change to cnctHEMM_HMC)
+            {    //  loc =  ("hmc");("uwmc");("mpous");("nwh");("val");
+                switch (location)
+                {
+                    case "hmc":
+                        pc.ConnectStr = ConfigData.Get("cnctHMC_TEST");
+                       // pc.ConnectStr = ConfigData.Get("cnctHEMM_HMC");
+                        break;
+                    case "uwmc":
+                        pc.ConnectStr = ConfigData.Get("cnctUWMC_TEST");
+                        break;
+                    case "nwh":
+                        pc.ConnectStr = ConfigData.Get("cnctNW_TEST");
+                        break;
+                    case "mpous":
+                        pc.ConnectStr = ConfigData.Get("cnctMPOUS_TEST");
+                       // pc.ConnectStr = ConfigData.Get("cnctMPOUS");
+                        break;
+
+                }
+                   //////// USE THIS FOR PRODUCTION  (change to cnctHEMM_HMC)
             }           
             pc.PatientPrice = patientPrice;
             pc.Debug = debug;
@@ -210,8 +240,7 @@ namespace PCUConsole
             pc.Verbose = verbose;
             if (OkToUpdate)         //this comes from the updateTables param in app.config
             {
-                pc.UpdateCharges();
-               // updateCount = pc.UpdateCount;  //commented out for test, now getting this count from line# 166
+                pc.UpdateCharges();              
             }
         }
         

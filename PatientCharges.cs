@@ -57,7 +57,8 @@ namespace PCUConsole
         }
 
         public void UpdateCharges()
-        {//FULL UPDATE
+        {
+            if (trace) lm.Write("TRACE:  PatientCharges.UpdateCharges()");
             //INCREMENTAL
             ODMRequest Request = new ODMRequest();
             Request.ConnectString = connectStr;
@@ -114,6 +115,7 @@ namespace PCUConsole
 
         public string FormatDollarValue(string dlrValu)
         {
+            if (trace) lm.Write("TRACE:  PatientCharges.FormatDollarValue()");
             string[] dollars = dlrValu.Split(".".ToCharArray());
             if (dollars.Length > 1)
             {

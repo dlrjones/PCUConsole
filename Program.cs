@@ -28,6 +28,7 @@ namespace PCUConsole
          * ITEM_VEND_PKG
          * SLOC_ITEM
          * */
+        #region Class Variables
         private static string logFilePath = "";
         private static LogManager lm = LogManager.GetInstance();
         private static ErrorMonitor errMssg = ErrorMonitor.GetInstance();
@@ -35,18 +36,19 @@ namespace PCUConsole
         private static NameValueCollection ConfigData = null;
         private static Hashtable dollarLimits = new Hashtable();
         private static Hashtable multiplierValu = new Hashtable();
+        private static Hashtable xpnse_accnt = new Hashtable();
+        private static Hashtable prevCostTable = new Hashtable();
         private static DateTimeUtilities dtu = new DateTimeUtilities();
         private static string locationCode = "";
         private static ArrayList locations;
         private static bool verbose = false;
         private static bool debug = true;
         private static bool trace = false;
-        private static string currentTask = ""; //"incremental" or "full"
-        private static string xpnse_accnt = "";
+        private static string currentTask = ""; //"incremental" or "full"        
         private static string dbugText = "";
         private static int updateCount = 0;
         private static int mpousCount = 0;
-
+        #endregion
         static void Main(string[] args)
         {
             try
@@ -63,11 +65,17 @@ namespace PCUConsole
                 debug = Convert.ToBoolean(ConfigData.Get("debug"));
                 trace = Convert.ToBoolean(ConfigData.Get("trace"));
                 verbose = Convert.ToBoolean(ConfigData.Get("verbose"));
-                xpnse_accnt = ConfigData.Get("xpnse_accnt");
+                xpnse_accnt.Add("hmc",ConfigData.Get("h-xpnse_accnt"));
+                xpnse_accnt.Add("uwmc", ConfigData.Get("u-xpnse_accnt"));
+                xpnse_accnt.Add("nw", ConfigData.Get("n-xpnse_accnt"));
+                prevCostTable.Add("hmc", ConfigData.Get("h-prev_cost_table"));
+                prevCostTable.Add("uwmc", ConfigData.Get("u-prev_cost_table"));
+                prevCostTable.Add("nwh", ConfigData.Get("n-prev_cost_table"));
                 lm.LogFile = ConfigData.Get("logFile") + dtu.DateTimeCoded() + ".txt";
                 lm.LogFilePath = ConfigData.Get("logFilePath");
                 lm.Debug = debug;
 
+                if (trace) lm.Write("TRACE:  Program.Main()");
                 ////////this was used to test the ErrorMonitor class - it records the error messages in the catch block
                 ////////comment out every line from the IF stmnt to the call to SendMail below
                 ////errMssg.Notify += "Program: Main: " + "ErrorMonitor Test" + Environment.NewLine;
@@ -80,7 +88,7 @@ namespace PCUConsole
                 }
                 else
                 {
-                    locationCode = args[0];  //16 = HMC; 4  = MPOUS; 20 = HMC & MPOUS  etc. See PCUpdate.ParseLocationCode()
+                    locationCode = args[0];  //16=HMC; 4=MPOUS; 20=HMC&MPOUS; 28=HMC&MPOUS&UW  etc. See PCUpdate.ParseLocationCode()
                     currentTask = args[1];  //full or incremental
                     debug = args.Length > 2 ? Convert.ToBoolean(args[2]) : false; //true = debug mode
                 }
@@ -91,6 +99,13 @@ namespace PCUConsole
                 lm.Write("PCUConsole.Program: Start " + locations + "   Type: " + currentTask);
                 if (verbose)
                     Console.WriteLine(Environment.NewLine + "Running... " + dbugText);
+
+                //THIS IS HERE FOR TESTING (and bypassing ProcessFiles())
+                ////////DataManager dm = new DataManager();
+                ////////dm.GetCurrentTierValues();
+                ////////MPOUSProcessFiles(dm); 
+                // END TEST
+
                 ProcessFiles();
                 if (locations.Contains("mpous"))
                 {
@@ -112,6 +127,7 @@ namespace PCUConsole
       
         private static void ProcessFiles()
         {
+            if (trace) lm.Write("TRACE:  Program.ProcessFiles()");
             PCUpdate pcu = new PCUpdate();
             pcu.LocationCode = Convert.ToByte(locationCode);
             pcu.CurrentTask = currentTask;
@@ -119,6 +135,7 @@ namespace PCUConsole
             pcu.Debug = debug;
             pcu.Trace = trace;
             pcu.Xpnse_accnt = xpnse_accnt;
+            pcu.PrevCostTable = prevCostTable;
             pcu.Process();
             updateCount = pcu.UpdateCount;
             dollarLimits = pcu.DollarLimits;
@@ -126,19 +143,25 @@ namespace PCUConsole
             locations = pcu.Locations;
         }
 
-        private static void MPOUSProcessFiles()
+        private static void MPOUSProcessFiles()       //add this for testing only MPOUS section -- (DataManager dm)
         {
+            if (trace) lm.Write("TRACE:  Program.MPOUSProcessFiles()");
+            DataManager dm = new DataManager();
             MPOUSCharges mc = new MPOUSCharges();
+            mc.UwmConnectStr = ConfigData.Get("cnctHMC_TEST");
+            mc.MpousCnctString = ConfigData.Get(" cnctMPOUS_TEST");
             mc.Debug = debug;
             mc.Trace = trace;
-            mc.DollarLimits = dollarLimits;
-            mc.MultiplierValu = multiplierValu;
+            dm.GetCurrentTierValues("mpous");
+            mc.DollarLimits = dm.DollarLimits;  //dollarLimits;
+            mc.MultiplierValu = dm.MultiplierValu; //multiplierValu
             mc.ProcessPOU();
             mpousCount = mc.Count;
         }
 
         private static void SendEmail()
         {
+            if (trace) lm.Write("TRACE:  Program.SendEmail()");
             OutputManager om = new OutputManager();
             om.EmailList = ConfigData.Get("recipients");
             om.BackupPath = ConfigData.Get("backup_path");

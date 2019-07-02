@@ -16,11 +16,11 @@ namespace PCUConsole
         protected double multiplier = 0;
         protected string vendorName = "";
         protected string itemNmbr = "";
-        protected string catalogNmbr = "";
-
+        protected string catalogNmbr = "";        
         public int ItemID
         {
             get { return itemID; }
+            set { itemID = value; }
         }
         public double Multiplier
         {
@@ -33,7 +33,8 @@ namespace PCUConsole
         }
         public string ItemNmbr
         {
-            get { return itemNmbr; }            
+            get { return itemNmbr; }
+            set { itemNmbr = value; }
         }
         public string VendorName
         {
@@ -42,7 +43,7 @@ namespace PCUConsole
         public string CatalogNmbr
         {
             get { return catalogNmbr; }
-        }
+        }        
         #endregion
 
         public void AddItemIDCost(int itmID, string cost)
@@ -50,12 +51,21 @@ namespace PCUConsole
             itemID = itmID;
             crntCost = cost;
         }
-
+        public void AddItemNOCost(string itemNo, string cost)
+        {
+            itemNmbr = itemNo;
+            crntCost = cost;
+        }
         public void AddVendItemCtlg(string vendName, string itemNo, string ctlgNo)
         {
             vendorName = vendName;
             itemNmbr = itemNo;
             catalogNmbr = ctlgNo;
+        }
+        public void AddItemNOItemID(string itemNo, int itemId )
+        {
+            itemNmbr = itemNo;
+            itemID = itemId;
         }
     }
 
@@ -65,12 +75,13 @@ namespace PCUConsole
         protected DataSet itemCost = new DataSet();
         protected DataSet dsRefresh = new DataSet();
         protected DataSet dsPatChrgPrice = new DataSet();
-        protected Hashtable changeItemCost = new Hashtable(); //for incremental updates, this holds the Item_ID and the new Current Cost of those items whose cost differ from the last run.
+        protected Hashtable changeItemCost = new Hashtable(); //for incremental updates, this holds the Item_ID/ItemMarkup and the new Current Cost of those items whose cost differ from the last run.
         protected Hashtable dollarLimits = new Hashtable();
         protected Hashtable multiplierValu = new Hashtable();
         protected Hashtable itemPatChrg = new Hashtable();
         protected Hashtable patientPrice = new Hashtable();
         protected Hashtable aliasLPC = new Hashtable();
+        protected Hashtable prevCostTable = new Hashtable();
         protected LogManager lm = LogManager.GetInstance();
         protected ErrorMonitor errMssg = ErrorMonitor.GetInstance();
         protected ODMDataFactory ODMDataSetFactory = null;
@@ -81,6 +92,7 @@ namespace PCUConsole
         protected string location = "";
         protected string sqlSelect = "";
         protected string currentTask = "";
+     //   protected string hospital = "";        
         protected char TAB = Convert.ToChar(9);
         protected bool OkToUpdate = false;
         protected bool debug = false;
@@ -88,6 +100,16 @@ namespace PCUConsole
         protected bool verbose = false;
         protected bool suppressLogEntry = false;
         private ItemMarkup itemMUFull;
+
+        public Hashtable PrevCostTable {       
+            get { return prevCostTable; }
+            set { prevCostTable = value; }
+        }
+        public string Location
+        {
+            get { return location; }
+            set { location = value; }
+        }
         #endregion
 
         public PCUCost()
@@ -98,9 +120,9 @@ namespace PCUConsole
             trace = Convert.ToBoolean(ConfigData.Get("trace"));
             debug = Convert.ToBoolean(ConfigData.Get("debug"));
             OkToUpdate = Convert.ToBoolean(ConfigData.Get("updateTables"));
-            uwmConnectStr = ConfigData.Get("cnctUWMC_TEST");
+            uwmConnectStr = ConfigData.Get("cnctHMC_TEST");
             biAdminConnectStr = ConfigData.Get("cnctBIAdmin");
-            mpousConnectStr = ConfigData.Get("cnctMPOUS");
+            mpousConnectStr = ConfigData.Get(" cnctMPOUS_TEST");
         }        
 
         protected void CalculatePatientPrice()
@@ -108,25 +130,27 @@ namespace PCUConsole
             CalculatePatientPrice(changeItemCost);
         }
 
-        protected void CalculatePatientPrice(Hashtable newPCPrice)         //(Hashtable ItemCost)
+        protected void CalculatePatientPrice(Hashtable newPCPrice)         // itemID/ItemMarkup object or for mpous itemNO/ItemMarkup object
         {// set the patientPrice hashtable    
             if (trace) lm.Write("TRACE:  PCUCost.CalculatePatientPrice()");
             //INCREMENTAL     
             ItemMarkup itmMrkUp;
-            object item;
+            object itemID;
             double cost = 0.0;
             double multiplier = 0.0;
             double patPrice = 0.0;
             patientPrice.Clear();
-            int test = 0;
+
             try
             {   //at this point, newPCPrice is a hashtable with itemID/ItemMarkup object
                 //for each itemID in the hashtable look at its multiplier value in the ItemMarkup
                 //If it has one then set the multiplier value to it otherwise set the multiplier
                 //to multiplierValu[indx]
                 foreach (DictionaryEntry itmCst in newPCPrice)
-                {                    
-                    item = itmCst.Key;
+                {
+                    itemID = itmCst.Key;
+                            //if(Convert.ToInt32(itemID) == 2253882)        //a place to check the pchrg calculation
+                            //    itemID = itemID = itmCst.Key;
                     itmMrkUp = (ItemMarkup)itmCst.Value;                                        
                     cost = Convert.ToDouble(itmMrkUp.CrntCost);
                     for (int indx = 1; indx <= dollarLimits.Count; indx++)
@@ -136,28 +160,20 @@ namespace PCUConsole
                         {
                             multiplier = Convert.ToDouble(multiplierValu[indx]);
                         }
-                        else
-                        {
-                            test = 1;
-                        }
+
                         // indx is a key for the dollarLimits and multiplierValu hashtables, that's why it doesn't start at 0
                         if (cost <= Convert.ToDouble(dollarLimits[indx]))
                         {
-// here's where the new price gets calculated for a DBUpdate
-                           // patPrice = Math.Round(cost*Convert.ToDouble(multiplierValu[indx]), 2);
-                            patPrice = cost * multiplier;
-                            patPrice = RoundOffPatPrice(patPrice);
-                            //if (patPrice < 10.00)
-                            //    patPrice = Math.Round(patPrice, 1, MidpointRounding.AwayFromZero);
-                            //else
-                            //    patPrice = Math.Round(patPrice);
+                        // here's where the new price gets calculated for a DBUpdate                          
+                            patPrice = cost + (cost * multiplier);
+                           // patPrice = RoundOffPatPrice(patPrice); //stopped doing this for hmc as of 7/1/19                            
                             break;
                         }
                         multiplier = 0.0;
                     }
-                    patientPrice.Add(item, patPrice);
+                    patientPrice.Add(itemID, patPrice);  //HEMM itemID
                     if(!suppressLogEntry)
-                        lm.Write("PCUCost: CalculatePatientPrice:   (id-newPChg)" + TAB + item + TAB + patPrice);
+                        lm.Write("PCUCost: CalculatePatientPrice:   (id-newPChg)" + TAB + itemID + TAB + patPrice);
                 }
             }
             catch (Exception ex)
@@ -169,6 +185,7 @@ namespace PCUConsole
 
         protected double RoundOffPatPrice(double patPrice)
         {
+            if (trace) lm.Write("TRACE:  PCUCost.RoundOffPatPrice()");
             if (patPrice < 10.00)
                 patPrice = Math.Round(patPrice, 1, MidpointRounding.AwayFromZero);
             else
@@ -251,7 +268,7 @@ namespace PCUConsole
             ODMRequest Request = new ODMRequest();
             Request.ConnectString = biAdminConnectStr;
             Request.CommandType = CommandType.Text;
-            Request.Command = "TRUNCATE TABLE uwm_BIAdmin.dbo.uwm_IVPItemCost ";
+            Request.Command = "TRUNCATE TABLE " + prevCostTable[location].ToString() + " ";
             if (verbose)
                 Console.WriteLine("Updating Previous Value Table: " + patientPrice.Keys.Count + " Changes.");
 
@@ -288,10 +305,10 @@ namespace PCUConsole
             int itemID = 0;
             double cost = 0.0;
             string itemNo = "";
-            string sqlRefresh = "SELECT  distinct  VEND.NAME,ITEM.ITEM_ID, IVP.PRICE, ITEM_NO " +
+            string sqlRefresh = "SELECT  distinct  ITEM.ITEM_ID, IVP.PRICE, ITEM_NO " +
                                            "FROM ITEM_VEND_PKG IVP " +
                                            "JOIN ITEM_VEND IV ON IVP.ITEM_VEND_ID = IV.ITEM_VEND_ID " +                                           
-                                           "JOIN ITEM ON ITEM.ITEM_ID = SI.ITEM_ID " +
+                                           "JOIN ITEM ON ITEM.ITEM_ID = IV.ITEM_ID " +
                                            "JOIN SLOC_ITEM SI ON IVP.ITEM_VEND_ID = SI.ITEM_VEND_ID " +
                                            "JOIN VEND ON VEND.VEND_ID = IV.VEND_ID " +
                                            "WHERE IVP.SEQ_NO = (SELECT MAX (SEQ_NO) FROM ITEM_VEND_PKG WHERE ITEM_VEND_ID = SI.ITEM_VEND_ID) " +
@@ -339,12 +356,16 @@ namespace PCUConsole
         {
             if (trace) lm.Write("TRACE:  PCUCost.ConvertToHashTable()");
             Hashtable htHash = new Hashtable();
+            ArrayList dupes = new ArrayList();
             try
             {
             foreach (DataRow dr in dSet.Tables[0].Rows)
             {
-                if (htHash.ContainsKey(Convert.ToInt32(dr.ItemArray[0])))
-                    continue;
+                    if (htHash.ContainsKey(Convert.ToInt32(dr.ItemArray[0])))
+                    {
+                        dupes.Add(Convert.ToInt32(dr.ItemArray[0]));
+                        continue;
+                    }
                 htHash.Add(Convert.ToInt32(dr.ItemArray[0]), Convert.ToDouble(dr.ItemArray[1]));
             }
                  }

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections;
 using LogDefault;
+using System.Collections.Specialized;
+using System.Configuration;
 
 namespace PCUConsole
 {    
@@ -9,13 +11,16 @@ namespace PCUConsole
         #region Class Variables
         private DataManager dm = new DataManager();
         private Hashtable dollarLimits = new Hashtable();
-        private Hashtable multiplierValu = new Hashtable();
+        private Hashtable multiplierValu = new Hashtable();        
+        private Hashtable xpnse_accnt = new Hashtable();
+        private Hashtable prevCostTable = new Hashtable();
         private ArrayList locations = new ArrayList();
         private static LogManager lm = LogManager.GetInstance();
+   //     private string hospital = "";
         private ErrorMonitor errMssg = ErrorMonitor.GetInstance();
         private byte locationCode = 0;
         private string currentTask = ""; //"incremental" or "full";
-        private string xpnse_accnt = "";
+ 
         private bool verbose = false;
         private bool debug = false;
         private bool trace = false;
@@ -46,9 +51,13 @@ namespace PCUConsole
         {
             set { currentTask = value; }
         }
-        public string Xpnse_accnt
+        public Hashtable Xpnse_accnt
         {
             set { xpnse_accnt = value; }
+        }
+        public Hashtable PrevCostTable
+        {
+            set { prevCostTable = value; }
         }
         public bool Verbose
         {
@@ -67,25 +76,38 @@ namespace PCUConsole
 
         public void Process()
         {
-            if(trace) lm.Write("TRACE:  PCUpdate.Process()");
+            NameValueCollection ConfigData = null;
+            ConfigData = (NameValueCollection)ConfigurationSettings.GetConfig("PatientChargeUpdate");
+            if (trace) lm.Write("TRACE:  PCUpdate.Process()");
             try
             {
                 ParseLocationCode();
+                
                 dm.Locations = locations;
                 dm.Verbose = verbose;
                 dm.Debug = debug;
                 dm.Trace = trace;
                 dm.Xpnse_accnt = xpnse_accnt;
-                ReadPCValues();
-                if (currentTask.Equals("incremental"))
-                {
-                    UpdateCurrentPCValues();//INCREMENTAL
-                    updateCount = dm.UpdateCount;
+                dm.PrevCostTable = prevCostTable;
+           //     ReadPCValues("HMC");
+
+                if (currentTask.Equals("full"))
+                {//FULL UPDATE
+                    ZeroCurrentPCValues(ConfigData.Get("cnctBIAdmin"));
                 }
-                else
-                {
-                    SetNewPCValues();//FULL UPDATE
-                }
+                //INCREMENTAL
+                UpdateCurrentPCValues();
+                updateCount = dm.UpdateCount;
+
+                //if (currentTask.Equals("incremental"))
+                //{//INCREMENTAL
+                //    UpdateCurrentPCValues();
+                //    updateCount = dm.UpdateCount;
+                //}
+                //else
+                //{//FULL UPDATE
+                //    SetNewPCValues();
+                //}
             }
             catch(Exception ex)
             {
@@ -248,27 +270,35 @@ namespace PCUConsole
             #endregion
         }
 
-        private void ReadPCValues()
+        private void ReadPCValues(string hosp)
         {
             if (trace) lm.Write("TRACE:  PCUpdate.ReadPCValues()");
-            dm.GetCurrentTierValues();
+            dm.GetCurrentTierValues(hosp);
             dollarLimits = dm.DollarLimits;
             multiplierValu = dm.MultiplierValu;
+        }
+
+        private void ZeroCurrentPCValues(string cnctStr)
+        {// this is done for full updates
+            if (trace) lm.Write("TRACE:  PCUpdate.ZeroCurrnetPCValues");
+            if (verbose) Console.WriteLine("Full Update");
+
+            dm.ZeroOutValues(cnctStr);
         }
 
         private void UpdateCurrentPCValues()
         {//INCREMENTAL
             if (trace) lm.Write("TRACE:  PCUpdate.UpdateCurrentPCValues");
-            if(verbose)
-                Console.WriteLine("Incremental Update");
+            if(verbose) Console.WriteLine("Incremental Update");
+
             dm.DBUpdate();
         }
 
         private void SetNewPCValues()
         {//FULL UPDATE
             if (trace) lm.Write("TRACE:  PCUpdate.SetNewPCValues()");
-            if (verbose) 
-                Console.WriteLine("Full Update");
+            if (verbose)  Console.WriteLine("Full Update");
+
             dm.DBWrite();            
         }
 

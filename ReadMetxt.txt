@@ -84,7 +84,7 @@ OVERVIEW OF STEPS
 
 	8)	  Refresh the uwm_MPOUS_LocProcCode table.    [This can be done manually with this: PointOfUse.RefreshPreviousValues()]
 	
-	When the program ends, uwm_BIAdmin.uwm_IVPItemCost holds the same values as the HEMM.ITEM_VEND_PKG table.
+	WHEN THE PROGRAM ENDS --> uwm_BIAdmin.uwm_IVPItemCost holds the same values as the HEMM.ITEM_VEND_PKG table.
 
 TABLES USED IN UWM_BIADMIN
          uwm_IVPItemCost -- HEMM.  This holds the last current item cost values (since the previous update to SLOC_ITEM PAT_CHRG_PRICE)

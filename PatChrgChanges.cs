@@ -11,8 +11,13 @@ namespace PCUConsole
         #region Class Variables
         private NameValueCollection ConfigData = null;
         private string connectStr = "";
+        
 
         #region Parameters
+        public Hashtable PrevCostTable
+        {
+            set { prevCostTable = value; }
+        }
         public Hashtable DollarLimits
         {
             set { dollarLimits = value; }
@@ -51,7 +56,7 @@ namespace PCUConsole
             ODMDataSetFactory = new ODMDataFactory();
             ConfigData = (NameValueCollection)ConfigurationSettings.GetConfig("PatientChargeUpdate");
             biAdminConnectStr = ConfigData.Get("cnctBIAdmin");
-            mpousConnectStr = ConfigData.Get("cnctMPOUS");
+            mpousConnectStr = ConfigData.Get(" cnctMPOUS_TEST");
             OkToUpdate = Convert.ToBoolean(ConfigData.Get("updateTables"));
             /// ///// ... to HERE
         }
@@ -105,7 +110,7 @@ namespace PCUConsole
                 pc.ConnectStr = biAdminConnectStr;  //use for TEST
             else
             {   
-                pc.ConnectStr = ConfigData.Get("cnctUWMC_TEST");  //////// USE THIS FOR PRODUCTION 
+                pc.ConnectStr = ConfigData.Get("cnctHMC_TEST");  //////// USE THIS FOR PRODUCTION cnctHCM_TEST
             }
             pc.PatientPrice = patientPrice;    
             pc.Debug = debug;
