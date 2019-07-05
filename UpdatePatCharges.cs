@@ -80,7 +80,7 @@ namespace PCUConsole
         {
             ConfigData = (NameValueCollection)ConfigurationSettings.GetConfig("PatientChargeUpdate");
             biAdminConnectStr = ConfigData.Get("cnctBIAdmin");
-            uwmConnectStr = ConfigData.Get("cnctHMC_TEST");
+            uwmConnectStr = ConfigData.Get("cnctHEMM_TEST");
             OkToUpdate = Convert.ToBoolean(ConfigData.Get("updateTables"));
             trace = Convert.ToBoolean(ConfigData.Get("trace"));
             ODMDataSetFactory = new ODMDataFactory();
@@ -217,8 +217,8 @@ namespace PCUConsole
                 switch (location)
                 {
                     case "hmc":
-                        pc.ConnectStr = ConfigData.Get("cnctHMC_TEST");
-                       // pc.ConnectStr = ConfigData.Get("cnctHEMM_HMC");
+                        pc.ConnectStr = ConfigData.Get("cnctHEMM_TEST");
+                       // pc.ConnectStr = ConfigData.Get("cnctHEMM_TEST");
                         break;
                     case "uwmc":
                         pc.ConnectStr = ConfigData.Get("cnctUWMC_TEST");
@@ -228,11 +228,11 @@ namespace PCUConsole
                         break;
                     case "mpous":
                         pc.ConnectStr = ConfigData.Get("cnctMPOUS_TEST");
-                       // pc.ConnectStr = ConfigData.Get("cnctMPOUS");
+                       // pc.ConnectStr = ConfigData.Get("cnctMPOUS_TEST");
                         break;
 
                 }
-                   //////// USE THIS FOR PRODUCTION  (change to cnctHEMM_HMC)
+                   //////// USE THIS FOR PRODUCTION  (change to cnctHEMM_TEST)
             }           
             pc.PatientPrice = patientPrice;
             pc.Debug = debug;

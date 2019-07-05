@@ -56,7 +56,7 @@ namespace PCUConsole
             ODMDataSetFactory = new ODMDataFactory();
             ConfigData = (NameValueCollection)ConfigurationSettings.GetConfig("PatientChargeUpdate");
             biAdminConnectStr = ConfigData.Get("cnctBIAdmin");
-            mpousConnectStr = ConfigData.Get(" cnctMPOUS_TEST");
+            mpousConnectStr = ConfigData.Get("cnctMPOUS_TEST");
             OkToUpdate = Convert.ToBoolean(ConfigData.Get("updateTables"));
             /// ///// ... to HERE
         }
@@ -110,7 +110,7 @@ namespace PCUConsole
                 pc.ConnectStr = biAdminConnectStr;  //use for TEST
             else
             {   
-                pc.ConnectStr = ConfigData.Get("cnctHMC_TEST");  //////// USE THIS FOR PRODUCTION cnctHCM_TEST
+                pc.ConnectStr = ConfigData.Get("cnctHEMM_TEST");  //////// USE THIS FOR PRODUCTION cnctHCM_TEST
             }
             pc.PatientPrice = patientPrice;    
             pc.Debug = debug;

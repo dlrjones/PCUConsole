@@ -324,13 +324,13 @@ namespace PCUConsole
         {
             if (trace) lm.Write("TRACE:  DataManager.GetConnectString()");
             if (loc == "hmc")
-                connectStr = ConfigData.Get("cnctHMC_TEST");
-                //connectStr = ConfigData.Get("cnctHMC_TEST");
+                connectStr = ConfigData.Get("cnctHEMM_TEST");
+                //connectStr = ConfigData.Get("cnctHEMM_TEST");
             else if (loc == "uwmc")
                 connectStr = ConfigData.Get("cnctUWMC_TEST");
                 //connectStr = ConfigData.Get("cnctHEMM_UWMC");
             else if (loc == "mpous")
-                connectStr = ConfigData.Get(" cnctMPOUS_TEST");
+                connectStr = ConfigData.Get("cnctMPOUS_TEST");
             else if (loc == "nwh")
                 connectStr = ConfigData.Get("cnctHEMM_NWH");
             else if (loc == "vmc")

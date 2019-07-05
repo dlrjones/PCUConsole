@@ -120,9 +120,9 @@ namespace PCUConsole
             trace = Convert.ToBoolean(ConfigData.Get("trace"));
             debug = Convert.ToBoolean(ConfigData.Get("debug"));
             OkToUpdate = Convert.ToBoolean(ConfigData.Get("updateTables"));
-            uwmConnectStr = ConfigData.Get("cnctHMC_TEST");
+            uwmConnectStr = ConfigData.Get("cnctHEMM_TEST");
             biAdminConnectStr = ConfigData.Get("cnctBIAdmin");
-            mpousConnectStr = ConfigData.Get(" cnctMPOUS_TEST");
+            mpousConnectStr = ConfigData.Get("cnctMPOUS_TEST");
         }        
 
         protected void CalculatePatientPrice()
@@ -262,13 +262,14 @@ namespace PCUConsole
 
         protected void RefreshPreviousValuTable()
         {//previous value table for HEMM is uwm_IVPItemCost
+            string pvTable = prevCostTable[location].ToString();
             if (trace) lm.Write("TRACE:  PCUCost.RefreshPreviousValuTable()");
             //INCREMENTAL
             DataSet dsRefresh = new DataSet();
             ODMRequest Request = new ODMRequest();
             Request.ConnectString = biAdminConnectStr;
             Request.CommandType = CommandType.Text;
-            Request.Command = "TRUNCATE TABLE " + prevCostTable[location].ToString() + " ";
+            Request.Command = "TRUNCATE TABLE [uwm_BIAdmin].[dbo]." + pvTable + " ";
             if (verbose)
                 Console.WriteLine("Updating Previous Value Table: " + patientPrice.Keys.Count + " Changes.");
 
@@ -284,7 +285,7 @@ namespace PCUConsole
                                           " records. This will take a moment or two");
                     foreach (DataRow dr in dsRefresh.Tables[0].Rows)
                     { //[0]=ITEM_ID   [1]=COST  [2]=ITEM_NO
-                        Request.Command = "INSERT INTO uwm_BIAdmin.dbo.uwm_IVPItemCost VALUES(" +
+                        Request.Command = "INSERT INTO uwm_BIAdmin.dbo." + pvTable + " VALUES(" +
                                           dr.ItemArray[0] + "," + dr.ItemArray[1] + ",'" +
                                           dr.ItemArray[2].ToString().Trim() + "')";
                         ODMDataSetFactory.ExecuteNonQuery(ref Request);
@@ -294,7 +295,7 @@ namespace PCUConsole
             }
             catch (Exception ex)
             {
-                lm.Write("PCUCost: RefreshPreviousValuTable:  " + ex.Message);
+                lm.Write("PCUCost: RefreshPreviousValuTable: " + ex.Message);
                 errMssg.Notify += "PCUCost: RefreshPreviousValuTable:  " + ex.Message + Environment.NewLine;
             }
         }

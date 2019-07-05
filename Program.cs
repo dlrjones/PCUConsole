@@ -51,6 +51,15 @@ namespace PCUConsole
         #endregion
         static void Main(string[] args)
         {
+            Determine wether to read from the test db or the prod db
+                    /*  To run without updating any data set the "updateTables" config value to false. To run without updating
+                        AND test the RefreshPreviousValuTable() method, set the "updateTables" config value to true and then
+                        comment out these lines:
+                        Program - #114 & #54
+                        UpdatePatCharges - #204
+                        PatChrgChanges - #123
+                    */
+
             try
             {
               //checked the App.config  <updateTables> value
@@ -148,8 +157,8 @@ namespace PCUConsole
             if (trace) lm.Write("TRACE:  Program.MPOUSProcessFiles()");
             DataManager dm = new DataManager();
             MPOUSCharges mc = new MPOUSCharges();
-            mc.UwmConnectStr = ConfigData.Get("cnctHMC_TEST");
-            mc.MpousCnctString = ConfigData.Get(" cnctMPOUS_TEST");
+            mc.UwmConnectStr = ConfigData.Get("cnctHEMM_TEST");
+            mc.MpousCnctString = ConfigData.Get("cnctMPOUS_TEST");
             mc.Debug = debug;
             mc.Trace = trace;
             dm.GetCurrentTierValues("mpous");
