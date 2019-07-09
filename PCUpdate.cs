@@ -20,10 +20,11 @@ namespace PCUConsole
         private ErrorMonitor errMssg = ErrorMonitor.GetInstance();
         private byte locationCode = 0;
         private string currentTask = ""; //"incremental" or "full";
- 
+        private NameValueCollection ConfigData = null;
         private bool verbose = false;
         private bool debug = false;
         private bool trace = false;
+        private bool OkToUpdate = false;
         private int updateCount = 0;
 
         #region Parameters
@@ -75,9 +76,9 @@ namespace PCUConsole
         #endregion
 
         public void Process()
-        {
-            NameValueCollection ConfigData = null;
+        {           
             ConfigData = (NameValueCollection)ConfigurationSettings.GetConfig("PatientChargeUpdate");
+            OkToUpdate = Convert.ToBoolean(ConfigData.Get("updateTables"));
             if (trace) lm.Write("TRACE:  PCUpdate.Process()");
             try
             {
@@ -282,7 +283,8 @@ namespace PCUConsole
         {// this is done for full updates
             if (trace) lm.Write("TRACE:  PCUpdate.ZeroCurrnetPCValues");
             if (verbose) Console.WriteLine("Full Update");
-
+            
+            dm.OKToUpdate = OkToUpdate;
             dm.ZeroOutValues(cnctStr);
         }
 
@@ -295,11 +297,11 @@ namespace PCUConsole
         }
 
         private void SetNewPCValues()
-        {//FULL UPDATE
+        {//FULL UPDATE -- The Full Update track has been simplified so that methods distinctly written for the Full track aren't necessary
             if (trace) lm.Write("TRACE:  PCUpdate.SetNewPCValues()");
-            if (verbose)  Console.WriteLine("Full Update");
+            //if (verbose)  Console.WriteLine("Full Update");
 
-            dm.DBWrite();            
+            //dm.DBWrite();            
         }
 
     }

@@ -59,7 +59,7 @@ namespace PCUConsole
         public void UpdateCharges()
         {
             if (trace) lm.Write("TRACE:  PatientCharges.UpdateCharges()");
-            //INCREMENTAL
+            //INCREMENTAL & FULL
             ODMRequest Request = new ODMRequest();
             Request.ConnectString = connectStr;
             Request.CommandType = CommandType.Text;

@@ -62,32 +62,32 @@ namespace PCUConsole
         }
 
         public void SetNewPatientCharges()
-        {//FULL UPDATE
+        {//FULL UPDATE -- The Full Update track has been simplified so that methods distinctly written for the Full track aren't necessary
             if (trace) lm.Write("TRACE:  PatChrgChanges.SetNewPatientCharges()");
 
-            uwmConnectStr = connectStr;
-            try
-            {
-                if (itemCost.Tables.Count < 1)
-                {
-                    GetCurrentItemCost();
-                    if (verbose)
-                        Console.WriteLine(itemCost.Tables[0].Rows.Count + " records" + Environment.NewLine +
-                                          "Calculating New Prices");
-                }
-                if (patientPrice.Count == 0) 
-                    CalculatePrice();
-                //if (location.Equals("mpous"))             ///////////////redirects to MPOUS changes 
-                //    UpdateMPOUSCharges();
-                else
-                {
-                    UpdatePatientCharge();
-                }
-            }
-            catch (Exception ex)
-            {
-                lm.Write(ex.Message);
-            }
+            //uwmConnectStr = connectStr;
+            //try
+            //{
+            //    if (itemCost.Tables.Count < 1)
+            //    {
+            //        GetCurrentItemCost();
+            //        if (verbose)
+            //            Console.WriteLine(itemCost.Tables[0].Rows.Count + " records" + Environment.NewLine +
+            //                              "Calculating New Prices");
+            //    }
+            //    if (patientPrice.Count == 0) 
+            //        CalculatePrice();
+            //    //if (location.Equals("mpous"))             ///////////////redirects to MPOUS changes 
+            //    //    UpdateMPOUSCharges();
+            //    else
+            //    {
+            //        UpdatePatientCharge();
+            //    }
+            //}
+            //catch (Exception ex)
+            //{
+            //    lm.Write(ex.Message);
+            //}
         }
 
         private void UpdateMPOUSCharges()
@@ -102,34 +102,34 @@ namespace PCUConsole
         }
 
         private void UpdatePatientCharge()
-        {//FULL UPDATE
+        {//FULL UPDATE -- The Full Update track has been simplified so that methods distinctly written for the Full track aren't necessary
             if (trace) lm.Write("TRACE:  PatChrgChanges.UpdatePatientCharge()");
 
-            PatientCharges pc = new PatientCharges();
-            if (debug)
-                pc.ConnectStr = biAdminConnectStr;  //use for TEST
-            else
-            {   
-                pc.ConnectStr = ConfigData.Get("cnctHEMM_TEST");  //////// USE THIS FOR PRODUCTION cnctHCM_TEST
-            }
-            pc.PatientPrice = patientPrice;    
-            pc.Debug = debug;
-            pc.Trace = trace;
-            pc.Verbose = verbose;
-            //          pc.UpdateCharges(); //Used to test this application     - COMMENT OUT TO PREVENT UPDATING uwm_BIAdmin.dbo.uwm_SLOC_ITEM  - 
+            //PatientCharges pc = new PatientCharges();
+            //if (debug)
+            //    pc.ConnectStr = biAdminConnectStr;  //use for TEST
+            //else
+            //{   
+            //    pc.ConnectStr = ConfigData.Get("cnctHEMM_TEST");  //////// USE THIS FOR PRODUCTION cnctHCM_TEST
+            //}
+            //pc.PatientPrice = patientPrice;    
+            //pc.Debug = debug;
+            //pc.Trace = trace;
+            //pc.Verbose = verbose;
+            ////          pc.UpdateCharges(); //Used to test this application     - COMMENT OUT TO PREVENT UPDATING uwm_BIAdmin.dbo.uwm_SLOC_ITEM  - 
 
-            if (OkToUpdate)
-            {
-                pc.UpdateCharges();
-                RefreshPreviousValuTable();
-            }
-            else
-            {
-                foreach (int itemID in patientPrice.Keys)
-                {
-                    lm.Write("UPDATE VALUE:" + TAB + "(id-PC$)    " + itemID.ToString() + TAB + pc.FormatDollarValue(patientPrice[itemID].ToString()));
-                }
-            }
+            //if (OkToUpdate)
+            //{
+            //   pc.UpdateCharges();
+            //    RefreshPreviousValuTable();
+            //}
+            //else
+            //{
+            //    foreach (int itemID in patientPrice.Keys)
+            //    {
+            //        lm.Write("UPDATE VALUE:" + TAB + "(id-PC$)    " + itemID.ToString() + TAB + pc.FormatDollarValue(patientPrice[itemID].ToString()));
+            //    }
+            //}
         }       
     }
 }

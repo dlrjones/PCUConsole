@@ -51,7 +51,7 @@ namespace PCUConsole
         #endregion
         static void Main(string[] args)
         {
-            Determine wether to read from the test db or the prod db
+//    Determine wether to read from the test db or the prod db
                     /*  To run without updating any data set the "updateTables" config value to false. To run without updating
                         AND test the RefreshPreviousValuTable() method, set the "updateTables" config value to true and then
                         comment out these lines:

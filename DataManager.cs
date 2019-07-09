@@ -25,6 +25,7 @@ namespace PCUConsole
         private int attributeCount = 0;
         private int updateCount = 0;
         private bool goodToGo = true;
+        private bool OkToUpdate = true;
         private bool verbose = false;
         private bool debug = false;
         private bool trace = false;
@@ -70,6 +71,10 @@ namespace PCUConsole
         public bool Trace
         {
             set { trace = value; }
+        }
+        public bool OKToUpdate
+        {
+            set { OkToUpdate = value; }
         }
         #endregion
         #endregion
@@ -230,7 +235,8 @@ namespace PCUConsole
                 Request.Command = "UPDATE [uwm_BIAdmin].[dbo]." + prevCostTable[hosp].ToString() + " " +
                                    "SET COST = 0.00 ";
                 //"WHERE ITEM_ID = 1091";
-                ODMDataSetFactory.ExecuteNonQuery(ref Request);
+                if (OkToUpdate)
+                    ODMDataSetFactory.ExecuteNonQuery(ref Request);
             }
 
         }
@@ -298,26 +304,26 @@ namespace PCUConsole
         }
 
         public void DBWrite()
-        {//FULL UPDATE
+        {//FULL UPDATE -- The Full Update track has been simplified so that methods distinctly written for the Full track aren't necessary
             if (trace) lm.Write("TRACE:  DataManager.DBWrite()");
-            PatChrgChanges pcc = new PatChrgChanges();
+            //PatChrgChanges pcc = new PatChrgChanges();
             
-            pcc.DollarLimits = dollarLimits;
-            pcc.MultiplierValu = multiplierValu;
-            pcc.Verbose = verbose;
-            pcc.Debug = debug;
-            foreach (string loc in locations)
-            {
-                if (loc == "mpous")
-                    pcc.SQLSelect = BuildMPOUSSelectString();
-                else
-                    pcc.SQLSelect = BuildHEMM_UWMSelectString(xpnse_accnt[loc].ToString());
+            //pcc.DollarLimits = dollarLimits;
+            //pcc.MultiplierValu = multiplierValu;
+            //pcc.Verbose = verbose;
+            //pcc.Debug = debug;
+            //foreach (string loc in locations)
+            //{
+            //    if (loc == "mpous")
+            //        pcc.SQLSelect = BuildMPOUSSelectString();
+            //    else
+            //        pcc.SQLSelect = BuildHEMM_UWMSelectString(xpnse_accnt[loc].ToString());
 
-                pcc.ConnectString = GetConnectString(loc);
-                pcc.PrevCostTable = prevCostTable;
-                pcc.Location = loc;
-                pcc.SetNewPatientCharges();
-            }            
+            //    pcc.ConnectString = GetConnectString(loc);
+            //    pcc.PrevCostTable = prevCostTable;
+            //    pcc.Location = loc;
+            //    pcc.SetNewPatientCharges();
+            //}            
         }       
              
         private string GetConnectString(string loc)
