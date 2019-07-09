@@ -41,7 +41,7 @@ namespace PCUConsole
         #endregion
 
         public void AddTestData()
-        {
+        {//JUST USED FOR TESTING
             ItemMarkup im;
             bool goodToGo = false;
             for (int x = 0; x < 10; x++)
@@ -136,9 +136,7 @@ namespace PCUConsole
             2222577	121584R        	105.50
             2222582	130465R        	36.00*/
         }
-
       
-
         public void CheckForReprocessedItems()
         {
             if (trace) lm.Write("TRACE:  Reprocess.CheckForReprocessedItems()");
