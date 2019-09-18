@@ -75,7 +75,7 @@ namespace PCUConsole
             suppressLogEntry = true;                            //the number of MPOUS items to be updated is a subset of all of the MPOUS items. suppressLogEntry keeps 
             CheckForReprocessedItems();                         //CalculatePatientPrice from logging the HEMM item_id and newPChg for all of the MPOUS items
             CalculatePatientPrice(ItemID_ItemMarkup);  //upon completion the hashtable in PCUCost named patientPrice now holds the HEMM item_ID as key and  
-                                              //an ItemMarkup object as value
+                                                        //an ItemMarkup object as value
             ComparePatPrices();
             UpdateMPOUS();
         }
@@ -257,7 +257,7 @@ namespace PCUConsole
         }
 
         private DataSet BuildSQLRefresh()
-        {
+        {//THIS GETS ALL ACTIVE, BILLABLE ITEMS FROM D_SUPPLY_ITEM
             if (trace) lm.Write("TRACE:  MPOUSCharges.BuildSQLRefresh()");
             if (trace) lm.Write("TRACE:  PointOfUse.BuildSQLRefresh()");
             int itemID = 0;
@@ -369,24 +369,27 @@ namespace PCUConsole
             string itemNo = "";
             int itemID = 0;
             string cost = "";
-            string sqlRefresh = "SELECT ITEM_NO, PRICE, ITEM.ITEM_ID " +              //, ITEM.ITEM_ID
+            string sqlRefresh = "SELECT ITEM_NO, IVP.PRICE, ITEM.ITEM_ID " +              //, ITEM.ITEM_ID
                                 "FROM ITEM " +
                                 "JOIN ITEM_VEND IV ON IV.ITEM_ID = ITEM.ITEM_ID " +
                                 "JOIN ITEM_VEND_PKG IVP ON IV.ITEM_VEND_ID = IVP.ITEM_VEND_ID " +
+                                "JOIN SLOC_ITEM ON SLOC_ITEM.ITEM_ID = ITEM.ITEM_ID " +
                                 "WHERE IVP.SEQ_NO = (SELECT MAX(SEQ_NO) FROM ITEM_VEND_PKG WHERE ITEM_VEND_ID = IV.ITEM_VEND_ID) " +
                                 "AND IV.SEQ_NO = (SELECT MIN(SEQ_NO) FROM ITEM_VEND  WHERE ITEM_ID = ITEM.ITEM_ID) " +
-                                "AND STAT IN(1, 2)";
+                                "AND ITEM.STAT IN(1, 2) " +
+                                "AND LOC_ID NOT IN (2365,2658,2664,2659)";
             ODMRequest Request = new ODMRequest();
             Request.ConnectString = uwmConnectStr; //connect str for HEMM
             Request.CommandType = CommandType.Text;
             Request.Command = sqlRefresh;
             if (verbose)
                 Console.WriteLine("Updating Previous Value Table: " + HEMMPrice.Keys.Count + " Changes.");
-            try
+            dsRefresh = ODMDataSetFactory.ExecuteDataSetBuild(ref Request);
+            foreach (DataRow dr in dsRefresh.Tables[0].Rows)
             {
-                dsRefresh = ODMDataSetFactory.ExecuteDataSetBuild(ref Request);
-                foreach (DataRow dr in dsRefresh.Tables[0].Rows)
-                { 
+                try
+                {
+
                     itemNo = dr.ItemArray[0].ToString().Trim();
                     if (itemNo == "100875")
                         itemNo = "100875";
@@ -395,19 +398,24 @@ namespace PCUConsole
                     //     if(alias_PatChrg.ContainsKey((object)itemNo))
                     if (aliasList.Contains((object)itemNo))
                     {
-                        im = new ItemMarkup();                        
-                        im.AddItemNOCost(itemNo,cost);
+                        im = new ItemMarkup();
+                        im.AddItemNOCost(itemNo, cost);
                         im.AddItemNOItemID(itemNo, itemID);
                         HEMMPrice.Add(itemNo, im);
                     }
+
+
                 }
-                
-            }
-            catch (Exception ex)
-            {
-                lm.Write("MPOUSCharges: BuildHEMMPriceTable:  " + ex.Message);
-                errMssg.Notify += "MPOUSCharges: BuildHEMMPriceTable:  " + ex.Message + Environment.NewLine;
-            }           
+                catch (Exception ex)
+                {
+                    if (!ex.Message.Contains("Item has already been added"))
+                    {
+                        lm.Write("MPOUSCharges: BuildHEMMPriceTable:  " + ex.Message);
+                        errMssg.Notify += "MPOUSCharges: BuildHEMMPriceTable:  " + ex.Message + Environment.NewLine;
+                    }
+                }
+            }//FOREACH
+                      
         }
 
         /*Patient Charge from the MPOUS side*/
