@@ -99,9 +99,9 @@ namespace PCUConsole
                 }
                 #endregion
                 try
-                {                  
+                {
                     Request.Command = command + FormatDollarValue(patientPrice[itemID].ToString()) + " WHERE ITEM_ID = " +
-                                      itemID.ToString();
+                                      itemID.ToString() + " AND LOC_ID NOT IN (2365,2658,2659,2664)";
                     ODMDataSetFactory.ExecuteNonQuery(ref Request);
                     lm.Write("UPDATE VALUE:" + TAB + itemID.ToString() + TAB + FormatDollarValue(patientPrice[itemID].ToString()));
                 }
