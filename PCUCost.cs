@@ -120,9 +120,9 @@ namespace PCUConsole
             trace = Convert.ToBoolean(ConfigData.Get("trace"));
             debug = Convert.ToBoolean(ConfigData.Get("debug"));
             OkToUpdate = Convert.ToBoolean(ConfigData.Get("updateTables"));
-            uwmConnectStr = ConfigData.Get("cnctHEMM_TEST");
+            uwmConnectStr = ConfigData.Get("cnctHEMM_HMC");
             biAdminConnectStr = ConfigData.Get("cnctBIAdmin");
-            mpousConnectStr = ConfigData.Get("cnctMPOUS_TEST");
+            mpousConnectStr = ConfigData.Get("cnctMPOUS");
         }        
 
         protected void CalculatePatientPrice()
@@ -251,6 +251,7 @@ namespace PCUConsole
             Request.Command = sqlSelect;
             try
             {
+                lm.Write("CnctStr:" + uwmConnectStr);
                 itemCost = ODMDataSetFactory.ExecuteDataSetBuild(ref Request);
             }
             catch (Exception ex)
@@ -311,7 +312,7 @@ namespace PCUConsole
                                            "JOIN ITEM_VEND IV ON IVP.ITEM_VEND_ID = IV.ITEM_VEND_ID " +                                           
                                            "JOIN ITEM ON ITEM.ITEM_ID = IV.ITEM_ID " +
                                            "JOIN SLOC_ITEM SI ON IVP.ITEM_VEND_ID = SI.ITEM_VEND_ID " +
-                                           "JOIN VEND ON VEND.VEND_ID = IV.VEND_ID " +
+                                           //"JOIN VEND ON VEND.VEND_ID = IV.VEND_ID " +
                                            "WHERE IVP.SEQ_NO = (SELECT MAX (SEQ_NO) FROM ITEM_VEND_PKG WHERE ITEM_VEND_ID = SI.ITEM_VEND_ID) " +
                                            "AND IV.SEQ_NO = (SELECT MIN(SEQ_NO) FROM ITEM_VEND WHERE ITEM_VEND_ID = IVP.ITEM_VEND_ID) " +
                                            "AND LEN(SI.PAT_CHRG_NO) > 0 " +
@@ -339,6 +340,7 @@ namespace PCUConsole
             Request.ConnectString = uwmConnectStr;
             Request.CommandType = CommandType.Text;
             Request.Command = sqlRefresh;
+            lm.Write("CnctStr:" + uwmConnectStr);
             if (verbose)
                 Console.WriteLine("Updating Previous Value Table: " + patientPrice.Keys.Count + " Changes.");
             try

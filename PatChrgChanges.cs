@@ -56,7 +56,7 @@ namespace PCUConsole
             ODMDataSetFactory = new ODMDataFactory();
             ConfigData = (NameValueCollection)ConfigurationSettings.GetConfig("PatientChargeUpdate");
             biAdminConnectStr = ConfigData.Get("cnctBIAdmin");
-            mpousConnectStr = ConfigData.Get("cnctMPOUS_TEST");
+            mpousConnectStr = ConfigData.Get("cnctMPOUS");
             OkToUpdate = Convert.ToBoolean(ConfigData.Get("updateTables"));
             /// ///// ... to HERE
         }

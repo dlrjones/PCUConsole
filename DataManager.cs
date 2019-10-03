@@ -142,6 +142,7 @@ namespace PCUConsole
                 errMssg.Notify += "DataManager: DBReadLatestTierValues:  " + ex.Message + Environment.NewLine;
             }
         }
+     
         /// <summary>
         /// reloads the hashtables used by PCUpdate to display the values
         /// </summary>
@@ -238,7 +239,6 @@ namespace PCUConsole
                 if (OkToUpdate)
                     ODMDataSetFactory.ExecuteNonQuery(ref Request);
             }
-
         }
 
         public DataSet GetReprocData(string connectStr,string inClause)
@@ -330,13 +330,13 @@ namespace PCUConsole
         {
             if (trace) lm.Write("TRACE:  DataManager.GetConnectString()");
             if (loc == "hmc")
-                connectStr = ConfigData.Get("cnctHEMM_TEST");
+                connectStr = ConfigData.Get("cnctHEMM_HMC");
                 //connectStr = ConfigData.Get("cnctHEMM_TEST");
             else if (loc == "uwmc")
-                connectStr = ConfigData.Get("cnctUWMC_TEST");
+                connectStr = ConfigData.Get("cnctUWMC");
                 //connectStr = ConfigData.Get("cnctHEMM_UWMC");
             else if (loc == "mpous")
-                connectStr = ConfigData.Get("cnctMPOUS_TEST");
+                connectStr = ConfigData.Get("cnctMPOUS");
             else if (loc == "nwh")
                 connectStr = ConfigData.Get("cnctHEMM_NWH");
             else if (loc == "vmc")

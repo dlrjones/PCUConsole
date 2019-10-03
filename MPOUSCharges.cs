@@ -298,6 +298,7 @@ namespace PCUConsole
             string itemNo = "";
             object lpc;
             object itemid;
+            lm.Write("CnctStr:" + uwmConnectStr);
             try
             {
                 foreach (DataRow dr in dsRefresh.Tables[0].Rows)
@@ -310,8 +311,7 @@ namespace PCUConsole
                         if (aliasLPC.ContainsKey((object)itemNo))
                             continue;
                         aliasLPC.Add(itemNo, lpc);
-                        MPOUS_Item_ID.Add(itemNo, itemid); //used to convert the Alias_ID to the Item_ID
-                       
+                        MPOUS_Item_ID.Add(itemNo, itemid); //used to convert the Alias_ID to the Item_ID                       
                     }
                     catch (Exception ex)
                     {
@@ -344,6 +344,7 @@ namespace PCUConsole
                     Console.WriteLine("Updating Previous Value Table: " + patientPrice.Keys.Count + " Changes.");
                 try
                 {
+                   
                     itemIDResults = ODMDataSetFactory.ExecuteDataReader(ref Request);
                     if(itemIDResults.Count > 0)
                     {
@@ -408,8 +409,8 @@ namespace PCUConsole
                 }
                 catch (Exception ex)
                 {
-                    if (!ex.Message.Contains("Item has already been added"))
-                    {
+                    if (!ex.Message.Contains("Item has already been added")) //the same item can be in multiple locations but the 
+                    {                                                        //price will be the same
                         lm.Write("MPOUSCharges: BuildHEMMPriceTable:  " + ex.Message);
                         errMssg.Notify += "MPOUSCharges: BuildHEMMPriceTable:  " + ex.Message + Environment.NewLine;
                     }
